@@ -58,21 +58,32 @@ npm run dev
 
 `.env` 內容包含專案設定值，已加入 `.gitignore`，不會被提交到版本控制。
 
-## 部署
+## 部署（GitHub Pages，自動部署）
 
-這是純前端的靜態網頁 App，`npm run build` 後產生的 `dist/` 資料夾可以部署到任何靜態網站託管服務，例如：
+這個專案設定了 `.github/workflows/deploy.yml`：每次推送到 `main` 或 `claude/hanzi-english-learning-app-bafjgg` 分支，GitHub Actions 就會自動建置並部署到 GitHub Pages，不需要手動操作。
 
-- **Firebase Hosting**（跟 Firestore 同一個專案，設定最簡單）：
-  ```bash
-  npm install -g firebase-tools
-  firebase login
-  firebase init hosting   # public directory 選 dist
-  npm run build
-  firebase deploy
-  ```
-- Vercel、Netlify、Cloudflare Pages 等也都可以，設定 build command 為 `npm run build`、輸出目錄為 `dist`，並記得在託管平台設定同樣的 `VITE_FIREBASE_*` 環境變數。
+公開網址會是：`https://<GitHub 帳號>.github.io/<repo 名稱>/`（例如 `https://icelog-tu.github.io/Jocelyn-learning-app/`）。
+
+第一次推送後，到 repo 的 **Settings → Pages** 確認 Source 是「GitHub Actions」（通常會自動設定好），並到 **Actions** 分頁看部署是否成功，成功後就能用網址打開。
+
+如果之後有設定 Firebase（見上方章節）想讓部署版本也能雲端同步，需要到 repo 的 **Settings → Secrets and variables → Actions** 新增以下 6 組 secret，值跟本機 `.env` 裡的一樣，設定好之後重新推送一次就會生效：
+
+```
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+```
+
+在沒有設定這些 secret 之前，部署版本會自動以本機模式（localStorage）運作，一樣可以正常使用，只是不會跨裝置同步。
 
 部署後用手機瀏覽器打開網址，可以選擇「加入主畫面」把它加到手機桌面，使用起來就像一個 App。
+
+### 其他部署選項
+
+這是純前端的靜態網頁 App，`npm run build` 後產生的 `dist/` 資料夾其實可以部署到任何靜態網站託管服務（Firebase Hosting、Vercel、Netlify、Cloudflare Pages 等）。如果不想用 GitHub Pages，把 `vite.config.ts` 裡的 `base` 改回 `/`，再依平台說明設定 build command `npm run build`、輸出目錄 `dist` 即可。
 
 ## 技術棧
 
