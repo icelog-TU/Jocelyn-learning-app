@@ -41,17 +41,21 @@ export function FamilySetupPage({ onPreviewNewCode, onJoin }: Props) {
   if (mode === "join") {
     return (
       <div className="screen">
-        <h1 className="page-title">加入家庭空間</h1>
+        <h1 className="page-title">設定家庭代碼</h1>
         <div className="card">
+          <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginTop: 0 }}>
+            要加入已經在用的空間，就輸入原本的代碼；也可以直接自己取一組好記的代碼（例如
+            LINLIN），之後在其他裝置輸入同一組就會同步。
+          </p>
           <div className="field">
-            <label>輸入家庭代碼</label>
+            <label>家庭代碼</label>
             <input
               value={joinInput}
               onChange={(e) => {
                 setJoinInput(e.target.value);
                 setJoinError(null);
               }}
-              placeholder="例如 AB12CD"
+              placeholder="例如 LINLIN 或 AB12CD"
               autoCapitalize="characters"
               autoFocus
             />
@@ -61,13 +65,13 @@ export function FamilySetupPage({ onPreviewNewCode, onJoin }: Props) {
             className="btn btn-primary btn-block"
             onClick={() => {
               if (!isValidFamilyCode(joinInput)) {
-                setJoinError("代碼長度不太對，請確認一下");
+                setJoinError("代碼請用 4~20 個英文字母或數字（可以有 - 和 _）");
                 return;
               }
               onJoin(joinInput);
             }}
           >
-            加入
+            確認
           </button>
           <button
             className="btn btn-outline btn-block"
@@ -100,14 +104,14 @@ export function FamilySetupPage({ onPreviewNewCode, onJoin }: Props) {
             setMode("created");
           }}
         >
-          建立新的家庭空間
+          幫我隨機產生一組代碼
         </button>
         <button
           className="btn btn-outline btn-block"
           style={{ marginTop: 12 }}
           onClick={() => setMode("join")}
         >
-          我已經有代碼，加入既有空間
+          我要自己輸入代碼
         </button>
       </div>
     </div>

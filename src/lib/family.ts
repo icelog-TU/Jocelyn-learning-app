@@ -25,7 +25,15 @@ export function generateFamilyCode(): string {
   return code;
 }
 
+// Letters/numbers/underscore/hyphen only: safe as both a Firestore path
+// segment and a localStorage key, and easy to type on a phone keyboard.
+const VALID_CODE_PATTERN = /^[A-Z0-9_-]+$/;
+
 export function isValidFamilyCode(code: string): boolean {
   const normalized = normalizeCode(code);
-  return normalized.length >= 4 && normalized.length <= 12;
+  return (
+    normalized.length >= 4 &&
+    normalized.length <= 20 &&
+    VALID_CODE_PATTERN.test(normalized)
+  );
 }

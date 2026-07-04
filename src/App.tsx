@@ -9,7 +9,8 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { NavBar } from "./components/NavBar";
 
 function App() {
-  const { familyCode, authReady, authError, previewNewCode, joinFamily } = useFamily();
+  const { familyCode, authReady, authError, previewNewCode, joinFamily, leaveFamily } =
+    useFamily();
   const { characters, loading } = useCharacters(familyCode);
 
   if (!familyCode) {
@@ -48,7 +49,14 @@ function App() {
       <Routes>
         <Route
           path="/"
-          element={<HomePage characters={characters} familyCode={familyCode} loading={loading} />}
+          element={
+            <HomePage
+              characters={characters}
+              familyCode={familyCode}
+              loading={loading}
+              onChangeFamilyCode={leaveFamily}
+            />
+          }
         />
         <Route path="/add" element={<AddCharactersPage familyCode={familyCode} />} />
         <Route

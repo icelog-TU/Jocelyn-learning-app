@@ -7,9 +7,10 @@ interface Props {
   characters: CharacterDoc[];
   familyCode: string;
   loading: boolean;
+  onChangeFamilyCode: () => void;
 }
 
-export function HomePage({ characters, familyCode, loading }: Props) {
+export function HomePage({ characters, familyCode, loading, onChangeFamilyCode }: Props) {
   const totalStars = characters.reduce((sum, c) => sum + c.stats.correctCount, 0);
   const todayKey = dateKey();
   const addedToday = characters.filter((c) => c.addedDateKey === todayKey).length;
@@ -45,6 +46,30 @@ export function HomePage({ characters, familyCode, loading }: Props) {
 
       <p style={{ textAlign: "center", color: "var(--color-text-muted)", fontSize: "0.85rem" }}>
         家庭代碼：<strong>{familyCode}</strong>
+        {" · "}
+        <button
+          onClick={() => {
+            if (
+              confirm(
+                "確定要更換家庭代碼嗎？換成別組代碼之後，會看到那組代碼底下的漢字紀錄（現在這組代碼的紀錄不會被刪除，之後輸入回來還會在）。",
+              )
+            ) {
+              onChangeFamilyCode();
+            }
+          }}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--color-secondary)",
+            fontWeight: 700,
+            fontSize: "0.85rem",
+            padding: 0,
+            cursor: "pointer",
+            textDecoration: "underline",
+          }}
+        >
+          更換代碼
+        </button>
       </p>
     </div>
   );
