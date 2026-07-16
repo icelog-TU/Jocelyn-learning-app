@@ -2,8 +2,9 @@ import { NavLink } from "react-router-dom";
 
 const NAV_ITEMS = [
   { to: "/", label: "首頁", icon: "🏠", end: true },
-  { to: "/add", label: "新增漢字", icon: "✏️", end: false },
+  { to: "/add", label: "新增", icon: "✏️", end: false },
   { to: "/review", label: "複習", icon: "🀄", end: false },
+  { to: "/sentences", label: "造句", icon: "📝", end: false },
   { to: "/history", label: "紀錄", icon: "📅", end: false },
 ];
 

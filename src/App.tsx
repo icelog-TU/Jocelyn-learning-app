@@ -1,17 +1,20 @@
 import { Route, Routes } from "react-router-dom";
 import { useFamily } from "./hooks/useFamily";
 import { useCharacters } from "./hooks/useCharacters";
+import { useSentenceStats } from "./hooks/useSentenceStats";
 import { FamilySetupPage } from "./pages/FamilySetupPage";
 import { HomePage } from "./pages/HomePage";
 import { AddCharactersPage } from "./pages/AddCharactersPage";
 import { ReviewPage } from "./pages/ReviewPage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { SentencePracticePage } from "./pages/SentencePracticePage";
 import { NavBar } from "./components/NavBar";
 
 function App() {
   const { familyCode, authReady, authError, previewNewCode, joinFamily, leaveFamily } =
     useFamily();
   const { characters, loading } = useCharacters(familyCode);
+  const sentenceStats = useSentenceStats(familyCode);
 
   if (!familyCode) {
     return (
@@ -54,6 +57,7 @@ function App() {
               characters={characters}
               familyCode={familyCode}
               loading={loading}
+              sentenceStars={sentenceStats.totalStars}
               onChangeFamilyCode={leaveFamily}
             />
           }
@@ -64,6 +68,10 @@ function App() {
           element={<ReviewPage characters={characters} familyCode={familyCode} />}
         />
         <Route path="/history" element={<HistoryPage characters={characters} />} />
+        <Route
+          path="/sentences"
+          element={<SentencePracticePage characters={characters} familyCode={familyCode} />}
+        />
       </Routes>
       <NavBar />
     </div>

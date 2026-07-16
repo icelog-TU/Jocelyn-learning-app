@@ -1,0 +1,8 @@
+name = "hanzi-sentence-worker"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+# Non-secret config. OPENAI_API_KEY is set separately as a secret:
+#   npx wrangler secret put OPENAI_API_KEY
+[vars]
+ALLOWED_ORIGIN = "https://icelog-tu.github.io"

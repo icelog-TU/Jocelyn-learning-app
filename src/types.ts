@@ -19,3 +19,9 @@ export interface NewCharacterInput {
   hanzi: string;
   zhuyin: string;
 }
+
+export interface SentenceStats {
+  totalStars: number;
+  totalSessions: number;
+  lastPracticedAt: number | null;
+}

@@ -7,11 +7,19 @@ interface Props {
   characters: CharacterDoc[];
   familyCode: string;
   loading: boolean;
+  sentenceStars: number;
   onChangeFamilyCode: () => void;
 }
 
-export function HomePage({ characters, familyCode, loading, onChangeFamilyCode }: Props) {
-  const totalStars = characters.reduce((sum, c) => sum + c.stats.correctCount, 0);
+export function HomePage({
+  characters,
+  familyCode,
+  loading,
+  sentenceStars,
+  onChangeFamilyCode,
+}: Props) {
+  const totalStars =
+    characters.reduce((sum, c) => sum + c.stats.correctCount, 0) + sentenceStars;
   const todayKey = dateKey();
   const addedToday = characters.filter((c) => c.addedDateKey === todayKey).length;
   const dueCount = countDueForReview(characters);
@@ -42,6 +50,11 @@ export function HomePage({ characters, familyCode, loading, onChangeFamilyCode }
             🀄 開始複習
           </Link>
         </div>
+        {characters.length > 0 && (
+          <Link to="/sentences" className="btn btn-outline btn-block" style={{ marginTop: 10 }}>
+            📝 AI 造句練習
+          </Link>
+        )}
       </div>
 
       <p style={{ textAlign: "center", color: "var(--color-text-muted)", fontSize: "0.85rem" }}>

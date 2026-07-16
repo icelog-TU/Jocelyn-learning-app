@@ -15,6 +15,26 @@ export function guessZhuyin(hanzi: string): string {
   return syllables.map(pinyinSyllableToZhuyin).join(" ");
 }
 
+export interface AnnotatedChar {
+  char: string;
+  zhuyin: string;
+}
+
+/**
+ * Per-character zhuyin for a full sentence, using pinyin-pro's contextual
+ * word segmentation to disambiguate polyphonic characters (e.g. picks the
+ * right reading of "了" based on surrounding words), unlike converting each
+ * character in isolation.
+ */
+export function zhuyinForSentence(sentence: string): AnnotatedChar[] {
+  const chars = Array.from(sentence);
+  const syllables = pinyin(sentence, { toneType: "symbol", type: "array" });
+  return chars.map((char, i) => ({
+    char,
+    zhuyin: pinyinSyllableToZhuyin(syllables[i] ?? char),
+  }));
+}
+
 /** For a single character, return alternate zhuyin readings (polyphonic support). */
 export function zhuyinCandidates(char: string): string[] {
   if (char.length !== 1) return [guessZhuyin(char)];

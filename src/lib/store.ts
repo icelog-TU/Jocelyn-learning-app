@@ -5,7 +5,12 @@ import {
   recordReviewResultLocal,
   subscribeCharactersLocal,
 } from "./localStore";
-import type { CharacterDoc, NewCharacterInput } from "../types";
+import { recordSentenceSession, subscribeSentenceStats } from "./sentenceStats";
+import {
+  recordSentenceSessionLocal,
+  subscribeSentenceStatsLocal,
+} from "./localSentenceStats";
+import type { CharacterDoc, NewCharacterInput, SentenceStats } from "../types";
 
 export const usingCloudSync = isFirebaseConfigured;
 
@@ -38,4 +43,21 @@ export function saveReviewResult(
   return isFirebaseConfigured
     ? recordReviewResult(familyCode, charId, correct)
     : recordReviewResultLocal(familyCode, charId, correct);
+}
+
+export function subscribeToSentenceStats(
+  familyCode: string,
+  onChange: (stats: SentenceStats) => void,
+  onError: (err: Error) => void,
+): () => void {
+  if (isFirebaseConfigured) {
+    return subscribeSentenceStats(familyCode, onChange, onError);
+  }
+  return subscribeSentenceStatsLocal(familyCode, onChange);
+}
+
+export function saveSentenceSession(familyCode: string, starsEarned: number): Promise<void> {
+  return isFirebaseConfigured
+    ? recordSentenceSession(familyCode, starsEarned)
+    : recordSentenceSessionLocal(familyCode, starsEarned);
 }

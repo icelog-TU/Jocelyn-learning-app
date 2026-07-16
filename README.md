@@ -7,7 +7,8 @@
 - **新增今天的漢字**：輸入繪本裡學到的漢字（可一次貼上好幾個字），自動查出注音，遇到破音字可以手動選擇正確讀音，也可以記錄是哪一本繪本。
 - **複習模式**：大字卡顯示漢字＋注音，附發音按鈕。女兒念對了按「念對了」拿星星，念錯了按「還不太會」，系統會用類似記憶卡盒（Leitner box）的方式安排之後多久要再複習。
 - **學習紀錄**：依日期列出每天新增了哪些字、來自哪本繪本。
-- **首頁**：顯示已學漢字總數、累積星星、今天新增的字，以及目前有幾個字適合複習。
+- **AI 造句練習**：用 AI（OpenAI）只用她已經學過的漢字（加上一份常用文法字白名單）生成短句，讓她練習念整句話。念完由旁邊的人（或她自己）按「我念對了」拿星星，念錯按「先跳過」，不做語音辨識判斷（不準確，容易誤判打擊信心）。這個功能需要額外設定，見下方「設定 AI 造句練習」。
+- **首頁**：顯示已學漢字總數、累積星星（漢字複習 + 造句練習合計）、今天新增的字，以及目前有幾個字適合複習。
 
 ## 資料儲存
 
@@ -58,6 +59,40 @@ npm run dev
 
 `.env` 內容包含專案設定值，已加入 `.gitignore`，不會被提交到版本控制。
 
+## 設定 AI 造句練習（選用）
+
+這個功能會呼叫 OpenAI 生成句子。**API 金鑰不能直接放在網頁前端**（打開瀏覽器就會被看光，別人可以拿去亂用、花掉你的額度），所以需要另外架一個小小的後端（`worker/` 資料夾，用 [Cloudflare Workers](https://workers.cloudflare.com/)，免費額度很夠用）幫忙保管金鑰、轉發請求。
+
+1. **建立 Cloudflare 帳號**（[dash.cloudflare.com](https://dash.cloudflare.com/sign-up)，免費，不需要信用卡）。
+
+2. **設定並部署 Worker**：
+
+   ```bash
+   cd worker
+   npm install
+   npx wrangler login          # 瀏覽器會跳出來要你登入 Cloudflare
+   npx wrangler secret put OPENAI_API_KEY   # 貼上你的 OpenAI API 金鑰
+   npm run deploy
+   ```
+
+   部署成功後，終端機會印出一個網址，類似：
+   ```
+   https://hanzi-sentence-worker.<你的帳號>.workers.dev
+   ```
+   把這個網址記下來。
+
+3. `worker/wrangler.toml` 裡的 `ALLOWED_ORIGIN` 預設是 `https://icelog-tu.github.io`（本專案的 GitHub Pages 網址），Worker 只會接受從這個網址發出的請求，其他來源一律拒絕。如果你的網址不同，記得改這裡再重新 `npm run deploy`。
+
+4. 在本機 `.env` 加上這一行（值換成你自己的 Worker 網址）：
+
+   ```
+   VITE_SENTENCE_API_URL=https://hanzi-sentence-worker.<你的帳號>.workers.dev
+   ```
+
+5. **強烈建議**到 [OpenAI 後台的 Usage limits](https://platform.openai.com/settings/organization/limits) 設定每月花費上限（例如 5 美元）。這是最後一道保險，就算 Worker 網址不小心外流，也不會產生意外的高額帳單。
+
+6. 重新啟動 `npm run dev` 就能在本機測試「AI 造句練習」了。部署版本要怎麼接上這個功能，見下方「部署」章節的 secrets 設定。
+
 ## 部署（GitHub Pages，自動部署）
 
 這個專案設定了 `.github/workflows/deploy.yml`：每次推送到 `main` 或 `claude/hanzi-english-learning-app-bafjgg` 分支，GitHub Actions 就會自動建置並部署到 GitHub Pages，不需要手動操作。
@@ -66,7 +101,7 @@ npm run dev
 
 第一次推送後，到 repo 的 **Settings → Pages** 確認 Source 是「GitHub Actions」（通常會自動設定好），並到 **Actions** 分頁看部署是否成功，成功後就能用網址打開。
 
-如果之後有設定 Firebase（見上方章節）想讓部署版本也能雲端同步，需要到 repo 的 **Settings → Secrets and variables → Actions** 新增以下 6 組 secret，值跟本機 `.env` 裡的一樣，設定好之後重新推送一次就會生效：
+如果之後有設定 Firebase 或 AI 造句練習（見上方章節）想讓部署版本也能用，需要到 repo 的 **Settings → Secrets and variables → Actions** 新增對應的 secret，值跟本機 `.env` 裡的一樣，設定好之後重新推送一次就會生效：
 
 ```
 VITE_FIREBASE_API_KEY
@@ -75,9 +110,10 @@ VITE_FIREBASE_PROJECT_ID
 VITE_FIREBASE_STORAGE_BUCKET
 VITE_FIREBASE_MESSAGING_SENDER_ID
 VITE_FIREBASE_APP_ID
+VITE_SENTENCE_API_URL
 ```
 
-在沒有設定這些 secret 之前，部署版本會自動以本機模式（localStorage）運作，一樣可以正常使用，只是不會跨裝置同步。
+在沒有設定這些 secret 之前，部署版本會自動以本機模式（localStorage）運作、AI 造句練習頁面會顯示尚未設定，其他功能不受影響。
 
 部署後用手機瀏覽器打開網址，可以選擇「加入主畫面」把它加到手機桌面，使用起來就像一個 App。
 
@@ -90,3 +126,4 @@ VITE_FIREBASE_APP_ID
 - React + TypeScript + Vite
 - Firebase（Firestore + Anonymous Auth），未設定時自動退回 localStorage
 - [pinyin-pro](https://github.com/zh-lx/pinyin-pro) + [pinyin-zhuyin](https://github.com/peterolson/pinyin-zhuyin) 做漢字轉注音
+- `worker/`：Cloudflare Workers 寫的小後端，安全保管 OpenAI 金鑰並轉發造句請求
