@@ -29,6 +29,7 @@ function jsonResponse(body: unknown, status: number, headers: Record<string, str
 
 interface RequestBody {
   knownChars?: unknown;
+  priorityChars?: unknown;
   count?: unknown;
 }
 
@@ -59,19 +60,25 @@ export default {
     const knownChars = Array.isArray(body.knownChars)
       ? body.knownChars.filter((c): c is string => typeof c === "string" && c.length === 1)
       : [];
+    const priorityChars = Array.isArray(body.priorityChars)
+      ? body.priorityChars.filter((c): c is string => typeof c === "string" && c.length === 1)
+      : [];
     const count = Math.min(Math.max(Math.trunc(Number(body.count) || 5), 1), 10);
 
     if (knownChars.length === 0) {
       return jsonResponse({ sentences: [] }, 200, headers);
     }
 
-    const allowedSet = new Set([...knownChars, ...GRAMMAR_WHITELIST]);
+    const allowedSet = new Set([...knownChars, ...priorityChars, ...GRAMMAR_WHITELIST]);
     const allowedListText = [...allowedSet].join("");
+    const priorityListText = priorityChars.join("");
 
     const userPrompt =
       `允許用字清單（只能用這些字，不可以用清單以外的任何國字）：\n${allowedListText}\n\n` +
-      `請生成 ${count + 3} 個句子，盡量多用「小朋友剛學會的字」（清單中除了常見文法字以外的字），` +
-      `輸出 JSON：{"sentences": ["句子1", "句子2", ...]}`;
+      (priorityListText
+        ? `優先漢字清單（小朋友最近剛學會，請盡量讓大部分句子都用到至少一個）：\n${priorityListText}\n\n`
+        : "") +
+      `請生成 ${count + 3} 個句子，輸出 JSON：{"sentences": ["句子1", "句子2", ...]}`;
 
     let openaiRes: Response;
     try {
@@ -112,9 +119,15 @@ export default {
       rawSentences = [];
     }
 
+    const usesPriorityChar = (s: string) => priorityChars.some((ch) => s.includes(ch));
+
     const validSentences = rawSentences
       .filter((s): s is string => typeof s === "string" && s.length > 0)
       .filter((s) => [...s].every((ch) => allowedSet.has(ch)))
+      // Prefer sentences that actually used a priority character, but keep
+      // the rest as a fallback so we still return `count` sentences even if
+      // the model didn't fully comply.
+      .sort((a, b) => Number(usesPriorityChar(b)) - Number(usesPriorityChar(a)))
       .slice(0, count);
 
     return jsonResponse({ sentences: validSentences }, 200, headers);

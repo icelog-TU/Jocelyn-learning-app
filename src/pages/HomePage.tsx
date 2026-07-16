@@ -1,23 +1,28 @@
 import { Link } from "react-router-dom";
-import type { CharacterDoc } from "../types";
+import type { CharacterDoc, SentenceDoc } from "../types";
 import { dateKey } from "../lib/characters";
 import { countDueForReview } from "../lib/review";
+import { STARS_PER_SENTENCE } from "../lib/sentencePractice";
 
 interface Props {
   characters: CharacterDoc[];
+  sentences: SentenceDoc[];
   familyCode: string;
   loading: boolean;
-  sentenceStars: number;
   onChangeFamilyCode: () => void;
 }
 
 export function HomePage({
   characters,
+  sentences,
   familyCode,
   loading,
-  sentenceStars,
   onChangeFamilyCode,
 }: Props) {
+  const sentenceStars = sentences.reduce(
+    (sum, s) => sum + s.stats.correctCount * STARS_PER_SENTENCE,
+    0,
+  );
   const totalStars =
     characters.reduce((sum, c) => sum + c.stats.correctCount, 0) + sentenceStars;
   const todayKey = dateKey();

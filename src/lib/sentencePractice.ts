@@ -1,7 +1,12 @@
 export const isSentencePracticeConfigured = Boolean(import.meta.env.VITE_SENTENCE_API_URL);
 
+/** Stars awarded per correctly-read sentence (more than a single character,
+ * since a whole sentence is a bigger accomplishment). */
+export const STARS_PER_SENTENCE = 3;
+
 export async function generateSentences(
   knownChars: string[],
+  priorityChars: string[],
   count: number,
 ): Promise<string[]> {
   const endpoint = import.meta.env.VITE_SENTENCE_API_URL;
@@ -12,7 +17,7 @@ export async function generateSentences(
   const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ knownChars, count }),
+    body: JSON.stringify({ knownChars, priorityChars, count }),
   });
 
   if (!res.ok) {

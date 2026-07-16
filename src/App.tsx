@@ -1,20 +1,21 @@
 import { Route, Routes } from "react-router-dom";
 import { useFamily } from "./hooks/useFamily";
 import { useCharacters } from "./hooks/useCharacters";
-import { useSentenceStats } from "./hooks/useSentenceStats";
+import { useSentences } from "./hooks/useSentences";
 import { FamilySetupPage } from "./pages/FamilySetupPage";
 import { HomePage } from "./pages/HomePage";
 import { AddCharactersPage } from "./pages/AddCharactersPage";
 import { ReviewPage } from "./pages/ReviewPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { SentencePracticePage } from "./pages/SentencePracticePage";
+import { SentenceManagePage } from "./pages/SentenceManagePage";
 import { NavBar } from "./components/NavBar";
 
 function App() {
   const { familyCode, authReady, authError, previewNewCode, joinFamily, leaveFamily } =
     useFamily();
   const { characters, loading } = useCharacters(familyCode);
-  const sentenceStats = useSentenceStats(familyCode);
+  const { sentences, loading: sentencesLoading } = useSentences(familyCode);
 
   if (!familyCode) {
     return (
@@ -55,9 +56,9 @@ function App() {
           element={
             <HomePage
               characters={characters}
+              sentences={sentences}
               familyCode={familyCode}
               loading={loading}
-              sentenceStars={sentenceStats.totalStars}
               onChangeFamilyCode={leaveFamily}
             />
           }
@@ -70,7 +71,18 @@ function App() {
         <Route path="/history" element={<HistoryPage characters={characters} />} />
         <Route
           path="/sentences"
-          element={<SentencePracticePage characters={characters} familyCode={familyCode} />}
+          element={
+            <SentencePracticePage
+              characters={characters}
+              sentences={sentences}
+              sentencesLoading={sentencesLoading}
+              familyCode={familyCode}
+            />
+          }
+        />
+        <Route
+          path="/sentences/manage"
+          element={<SentenceManagePage sentences={sentences} familyCode={familyCode} />}
         />
       </Routes>
       <NavBar />

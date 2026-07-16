@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { CharacterDoc } from "../types";
 import { pickReviewSession } from "../lib/review";
 import { saveReviewResult } from "../lib/store";
+import { playStarSound } from "../lib/sound";
 import { Flashcard } from "../components/Flashcard";
 import { StarBurst } from "../components/StarBurst";
 
@@ -73,6 +74,7 @@ export function ReviewPage({ characters, familyCode }: Props) {
     if (correct) {
       setStarsEarned((s) => s + 1);
       setBurstKey((k) => k + 1);
+      playStarSound();
     }
     try {
       await saveReviewResult(familyCode, current.id, correct);

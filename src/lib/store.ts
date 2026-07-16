@@ -5,12 +5,21 @@ import {
   recordReviewResultLocal,
   subscribeCharactersLocal,
 } from "./localStore";
-import { recordSentenceSession, subscribeSentenceStats } from "./sentenceStats";
 import {
-  recordSentenceSessionLocal,
-  subscribeSentenceStatsLocal,
-} from "./localSentenceStats";
-import type { CharacterDoc, NewCharacterInput, SentenceStats } from "../types";
+  addSentenceBatch,
+  deleteSentenceDoc,
+  recordSentenceReviewResult,
+  subscribeSentences,
+  updateSentenceText,
+} from "./sentences";
+import {
+  addSentenceBatchLocal,
+  deleteSentenceLocal,
+  recordSentenceReviewResultLocal,
+  subscribeSentencesLocal,
+  updateSentenceTextLocal,
+} from "./localSentences";
+import type { CharacterDoc, NewCharacterInput, SentenceDoc } from "../types";
 
 export const usingCloudSync = isFirebaseConfigured;
 
@@ -45,19 +54,49 @@ export function saveReviewResult(
     : recordReviewResultLocal(familyCode, charId, correct);
 }
 
-export function subscribeToSentenceStats(
+export function subscribeToSentences(
   familyCode: string,
-  onChange: (stats: SentenceStats) => void,
+  onChange: (sentences: SentenceDoc[]) => void,
   onError: (err: Error) => void,
 ): () => void {
   if (isFirebaseConfigured) {
-    return subscribeSentenceStats(familyCode, onChange, onError);
+    return subscribeSentences(familyCode, onChange, onError);
   }
-  return subscribeSentenceStatsLocal(familyCode, onChange);
+  return subscribeSentencesLocal(familyCode, onChange);
 }
 
-export function saveSentenceSession(familyCode: string, starsEarned: number): Promise<void> {
+export function saveSentenceBatch(
+  familyCode: string,
+  texts: string[],
+  sourceChars: string[],
+): Promise<void> {
   return isFirebaseConfigured
-    ? recordSentenceSession(familyCode, starsEarned)
-    : recordSentenceSessionLocal(familyCode, starsEarned);
+    ? addSentenceBatch(familyCode, texts, sourceChars)
+    : addSentenceBatchLocal(familyCode, texts, sourceChars);
+}
+
+export function saveSentenceReviewResult(
+  familyCode: string,
+  sentenceId: string,
+  correct: boolean,
+): Promise<void> {
+  return isFirebaseConfigured
+    ? recordSentenceReviewResult(familyCode, sentenceId, correct)
+    : recordSentenceReviewResultLocal(familyCode, sentenceId, correct);
+}
+
+export function editSentenceText(
+  familyCode: string,
+  sentenceId: string,
+  text: string,
+): Promise<void> {
+  return isFirebaseConfigured
+    ? updateSentenceText(familyCode, sentenceId, text)
+    : updateSentenceTextLocal(familyCode, sentenceId, text);
+}
+
+export function removeSentence(familyCode: string, sentenceId: string): Promise<void> {
+  return isFirebaseConfigured
+    ? deleteSentenceDoc(familyCode, sentenceId)
+    : deleteSentenceLocal(familyCode, sentenceId);
 }

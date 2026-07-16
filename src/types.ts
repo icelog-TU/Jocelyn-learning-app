@@ -20,8 +20,10 @@ export interface NewCharacterInput {
   zhuyin: string;
 }
 
-export interface SentenceStats {
-  totalStars: number;
-  totalSessions: number;
-  lastPracticedAt: number | null;
+export interface SentenceDoc {
+  id: string;
+  text: string;
+  sourceChars: string[];
+  createdAt: number;
+  stats: CharacterStats;
 }
