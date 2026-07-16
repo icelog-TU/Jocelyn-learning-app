@@ -68,7 +68,10 @@ function App() {
           path="/review"
           element={<ReviewPage characters={characters} familyCode={familyCode} />}
         />
-        <Route path="/history" element={<HistoryPage characters={characters} />} />
+        <Route
+          path="/history"
+          element={<HistoryPage characters={characters} sentences={sentences} />}
+        />
         <Route
           path="/sentences"
           element={

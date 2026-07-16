@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { CharacterDoc, SentenceDoc } from "../types";
-import { pickPriorityCharacters, pickReviewSession } from "../lib/review";
+import { pickReviewSession } from "../lib/review";
 import {
   generateSentences,
   isSentencePracticeConfigured,
@@ -36,7 +36,7 @@ function speakPraise() {
   window.speechSynthesis.speak(utterance);
 }
 
-type Phase = "idle" | "generating" | "waiting-for-sync" | "ready" | "error";
+type Phase = "idle" | "empty" | "generating" | "waiting-for-sync" | "ready" | "error";
 
 interface Props {
   characters: CharacterDoc[];
@@ -62,20 +62,37 @@ export function SentencePracticePage({
   const initializedRef = useRef(false);
   const generationMarkerRef = useRef(0);
 
-  async function handleGenerate() {
+  /** Asks which character to build sentences around; validates it's a single
+   * character she's actually learned. Returns null if cancelled/invalid. */
+  function promptForTargetChar(): string | null {
+    const input = window.prompt("要練習哪個漢字？請輸入一個她已經學過的字，例如「學」");
+    if (input === null) return null;
+    const trimmed = input.trim();
+    if ([...trimmed].length !== 1) {
+      alert("請只輸入一個漢字喔");
+      return null;
+    }
+    const known = new Set(characters.map((c) => c.hanzi));
+    if (!known.has(trimmed)) {
+      alert(`「${trimmed}」還沒有學過，請先在「新增漢字」加入這個字，再回來練習造句`);
+      return null;
+    }
+    return trimmed;
+  }
+
+  async function handleGenerate(targetChar: string) {
     setPhase("generating");
     setError(null);
     try {
       const knownChars = [...new Set(characters.map((c) => c.hanzi))];
-      const priorityChars = pickPriorityCharacters(characters);
-      const newTexts = await generateSentences(knownChars, priorityChars, GENERATE_COUNT);
+      const newTexts = await generateSentences(knownChars, targetChar, GENERATE_COUNT);
       if (newTexts.length === 0) {
         setPhase("error");
-        setError("這次沒有生成出合適的句子，可能是漢字還不夠多，再多學幾個字之後再試試看！");
+        setError(`這次沒有生成出用到「${targetChar}」的合適句子，換一個字再試試看！`);
         return;
       }
       generationMarkerRef.current = Date.now();
-      await saveSentenceBatch(familyCode, newTexts, priorityChars);
+      await saveSentenceBatch(familyCode, newTexts, [targetChar]);
       setPhase("waiting-for-sync");
     } catch (err) {
       setPhase("error");
@@ -83,13 +100,18 @@ export function SentencePracticePage({
     }
   }
 
+  function handleGenerateClick() {
+    const targetChar = promptForTargetChar();
+    if (targetChar) void handleGenerate(targetChar);
+  }
+
   // First load: reuse the existing bank if there's anything in it, otherwise
-  // kick off an initial generation automatically.
+  // show the empty state so the parent can pick a character to start with.
   useEffect(() => {
     if (sentencesLoading || initializedRef.current || !isSentencePracticeConfigured) return;
     initializedRef.current = true;
     if (sentences.length === 0) {
-      void handleGenerate();
+      setPhase("empty");
     } else {
       setSession(pickReviewSession(sentences, SESSION_SIZE));
       setPhase("ready");
@@ -144,8 +166,30 @@ export function SentencePracticePage({
         <h1 className="page-title">AI 句子練習</h1>
         <div className="card">
           <p style={{ color: "var(--color-danger)" }}>{error}</p>
-          <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={handleGenerate}>
+          <button
+            className="btn btn-primary btn-block"
+            style={{ marginTop: 12 }}
+            onClick={handleGenerateClick}
+          >
             重試一次
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "empty") {
+    return (
+      <div className="screen">
+        <h1 className="page-title">AI 句子練習</h1>
+        <div className="empty-state card">
+          <p>還沒有句子喔！挑一個她學過的字，讓 AI 圍繞這個字造 5 句話練習。</p>
+          <button
+            className="btn btn-primary btn-block"
+            style={{ marginTop: 12 }}
+            onClick={handleGenerateClick}
+          >
+            🪄 產生新句子
           </button>
         </div>
       </div>
@@ -178,7 +222,7 @@ export function SentencePracticePage({
             <Link to="/" className="btn btn-outline" style={{ flex: 1 }}>
               回首頁
             </Link>
-            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleGenerate}>
+            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleGenerateClick}>
               🪄 產生新句子
             </button>
           </div>
@@ -260,18 +304,38 @@ export function SentencePracticePage({
         </button>
       </div>
 
-      <Link
-        to="/sentences/manage"
+      <div
         style={{
-          display: "block",
-          textAlign: "center",
+          display: "flex",
+          justifyContent: "center",
+          gap: 12,
           marginTop: 16,
-          fontSize: "0.85rem",
-          color: "var(--color-text-muted)",
         }}
       >
-        管理已存的句子
-      </Link>
+        <button
+          onClick={handleGenerateClick}
+          style={{
+            background: "none",
+            border: "none",
+            fontSize: "0.85rem",
+            color: "var(--color-text-muted)",
+            cursor: "pointer",
+            textDecoration: "underline",
+            padding: 0,
+          }}
+        >
+          產生新句子
+        </button>
+        <Link
+          to="/sentences/manage"
+          style={{
+            fontSize: "0.85rem",
+            color: "var(--color-text-muted)",
+          }}
+        >
+          管理已存的句子
+        </Link>
+      </div>
     </div>
   );
 }

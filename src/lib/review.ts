@@ -1,4 +1,4 @@
-import type { CharacterDoc, CharacterStats } from "../types";
+import type { CharacterStats } from "../types";
 
 export interface Reviewable {
   stats: CharacterStats;
@@ -41,17 +41,4 @@ export function nextStats(current: CharacterStats, correct: boolean): CharacterS
     box: correct ? Math.min(current.box + 1, 5) : 1,
     lastReviewedAt: Date.now(),
   };
-}
-
-/**
- * Characters worth emphasizing in newly-generated sentences: newest/least-
- * mastered first (lowest box, then most recently added), so a batch of
- * characters learned today keeps showing up in sentences for the next few
- * days until she's actually got them down.
- */
-export function pickPriorityCharacters(characters: CharacterDoc[], limit = 15): string[] {
-  return [...characters]
-    .sort((a, b) => a.stats.box - b.stats.box || b.addedAt - a.addedAt)
-    .slice(0, limit)
-    .map((c) => c.hanzi);
 }

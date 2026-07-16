@@ -1,17 +1,25 @@
-import type { CharacterDoc } from "../types";
+import { useState } from "react";
+import type { CharacterDoc, SentenceDoc } from "../types";
+import { dateKey } from "../lib/characters";
 
 interface Props {
   characters: CharacterDoc[];
+  sentences: SentenceDoc[];
 }
 
-interface DayGroup {
+interface CharDayGroup {
   dateKey: string;
   bookTitles: string[];
   chars: CharacterDoc[];
 }
 
-function groupByDate(characters: CharacterDoc[]): DayGroup[] {
-  const map = new Map<string, DayGroup>();
+interface SentenceDayGroup {
+  dateKey: string;
+  sentences: SentenceDoc[];
+}
+
+function groupCharsByDate(characters: CharacterDoc[]): CharDayGroup[] {
+  const map = new Map<string, CharDayGroup>();
   for (const c of characters) {
     let group = map.get(c.addedDateKey);
     if (!group) {
@@ -26,24 +34,69 @@ function groupByDate(characters: CharacterDoc[]): DayGroup[] {
   return Array.from(map.values()).sort((a, b) => (a.dateKey < b.dateKey ? 1 : -1));
 }
 
-function formatDate(dateKey: string): string {
-  const [y, m, d] = dateKey.split("-").map(Number);
+function groupSentencesByDate(sentences: SentenceDoc[]): SentenceDayGroup[] {
+  const map = new Map<string, SentenceDayGroup>();
+  for (const s of sentences) {
+    const key = dateKey(new Date(s.createdAt));
+    let group = map.get(key);
+    if (!group) {
+      group = { dateKey: key, sentences: [] };
+      map.set(key, group);
+    }
+    group.sentences.push(s);
+  }
+  return Array.from(map.values()).sort((a, b) => (a.dateKey < b.dateKey ? 1 : -1));
+}
+
+function formatDate(key: string): string {
+  const [y, m, d] = key.split("-").map(Number);
   const date = new Date(y, m - 1, d);
   const weekday = ["日", "一", "二", "三", "四", "五", "六"][date.getDay()];
   return `${m}/${d}（週${weekday}）`;
 }
 
-export function HistoryPage({ characters }: Props) {
-  const groups = groupByDate(characters);
+export function HistoryPage({ characters, sentences }: Props) {
+  const [tab, setTab] = useState<"characters" | "sentences">("characters");
 
   return (
     <div className="screen">
       <h1 className="page-title">學習紀錄</h1>
 
-      {groups.length === 0 && (
-        <div className="empty-state card">還沒有紀錄，新增今天的漢字後就會出現在這裡</div>
-      )}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <button
+          className={tab === "characters" ? "btn btn-primary" : "btn btn-outline"}
+          style={{ flex: 1 }}
+          onClick={() => setTab("characters")}
+        >
+          漢字紀錄
+        </button>
+        <button
+          className={tab === "sentences" ? "btn btn-primary" : "btn btn-outline"}
+          style={{ flex: 1 }}
+          onClick={() => setTab("sentences")}
+        >
+          句子紀錄
+        </button>
+      </div>
 
+      {tab === "characters" ? (
+        <CharacterHistory characters={characters} />
+      ) : (
+        <SentenceHistory sentences={sentences} />
+      )}
+    </div>
+  );
+}
+
+function CharacterHistory({ characters }: { characters: CharacterDoc[] }) {
+  const groups = groupCharsByDate(characters);
+
+  if (groups.length === 0) {
+    return <div className="empty-state card">還沒有紀錄，新增今天的漢字後就會出現在這裡</div>;
+  }
+
+  return (
+    <>
       {groups.map((group) => (
         <div className="card" key={group.dateKey} style={{ marginBottom: 14 }}>
           <div
@@ -84,6 +137,59 @@ export function HistoryPage({ characters }: Props) {
           </div>
         </div>
       ))}
-    </div>
+    </>
+  );
+}
+
+function SentenceHistory({ sentences }: { sentences: SentenceDoc[] }) {
+  const groups = groupSentencesByDate(sentences);
+
+  if (groups.length === 0) {
+    return <div className="empty-state card">還沒有句子紀錄，去「造句」頁面讓 AI 生成第一批吧！</div>;
+  }
+
+  return (
+    <>
+      {groups.map((group) => (
+        <div className="card" key={group.dateKey} style={{ marginBottom: 14 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 10,
+            }}
+          >
+            <strong>{formatDate(group.dateKey)}</strong>
+            <span className="pill">{group.sentences.length} 句</span>
+          </div>
+          {group.sentences.map((s) => (
+            <div
+              key={s.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 0",
+                borderBottom: "1px solid #f1e6d8",
+              }}
+            >
+              <span style={{ fontSize: "1.05rem" }}>{s.text}</span>
+              <span style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                {s.sourceChars[0] && (
+                  <span className="pill" style={{ fontSize: "0.75rem" }}>
+                    衍生自「{s.sourceChars[0]}」
+                  </span>
+                )}
+                <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
+                  {"★".repeat(Math.min(s.stats.box, 5))}
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </>
   );
 }
