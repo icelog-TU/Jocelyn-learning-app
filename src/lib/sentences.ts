@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { nextStats } from "./review";
-import type { CharacterStats, SentenceDoc } from "../types";
+import type { CharacterStats, SentenceDifficulty, SentenceDoc } from "../types";
 
 function familySentencesRef(familyCode: string) {
   if (!db) throw new Error("Firestore is not configured");
@@ -33,6 +33,7 @@ export function subscribeSentences(
           id: docSnap.id,
           text: data.text ?? "",
           sourceChars: Array.isArray(data.sourceChars) ? data.sourceChars : [],
+          difficulty: data.difficulty ?? "medium",
           createdAt: data.createdAt ?? 0,
           stats: {
             reviewCount: data.stats?.reviewCount ?? 0,
@@ -59,6 +60,7 @@ export async function addSentenceBatch(
   familyCode: string,
   texts: string[],
   sourceChars: string[],
+  difficulty: SentenceDifficulty,
 ): Promise<void> {
   const batch = writeBatch(db!);
   const now = Date.now();
@@ -69,6 +71,7 @@ export async function addSentenceBatch(
     batch.set(newDoc, {
       text,
       sourceChars,
+      difficulty,
       createdAt: now,
       stats: INITIAL_STATS,
     });

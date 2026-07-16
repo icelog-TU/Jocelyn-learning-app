@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CharacterDoc, SentenceDoc } from "../types";
 import { dateKey } from "../lib/characters";
+import { DIFFICULTY_LABELS } from "../lib/sentencePractice";
 
 interface Props {
   characters: CharacterDoc[];
@@ -182,6 +183,9 @@ function SentenceHistory({ sentences }: { sentences: SentenceDoc[] }) {
                     衍生自「{s.sourceChars[0]}」
                   </span>
                 )}
+                <span className="pill" style={{ fontSize: "0.75rem" }}>
+                  {DIFFICULTY_LABELS[s.difficulty ?? "medium"]}
+                </span>
                 <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
                   {"★".repeat(Math.min(s.stats.box, 5))}
                 </span>

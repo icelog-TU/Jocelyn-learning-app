@@ -1,4 +1,4 @@
-import type { CharacterStats, SentenceDoc } from "../types";
+import type { CharacterStats, SentenceDifficulty, SentenceDoc } from "../types";
 import { nextStats } from "./review";
 
 function storageKey(familyCode: string): string {
@@ -8,7 +8,9 @@ function storageKey(familyCode: string): string {
 function readAll(familyCode: string): SentenceDoc[] {
   try {
     const raw = localStorage.getItem(storageKey(familyCode));
-    return raw ? (JSON.parse(raw) as SentenceDoc[]) : [];
+    const parsed = raw ? (JSON.parse(raw) as SentenceDoc[]) : [];
+    // Sentences saved before difficulty existed default to "medium".
+    return parsed.map((s) => ({ ...s, difficulty: s.difficulty ?? "medium" }));
   } catch {
     return [];
   }
@@ -53,6 +55,7 @@ export async function addSentenceBatchLocal(
   familyCode: string,
   texts: string[],
   sourceChars: string[],
+  difficulty: SentenceDifficulty,
 ): Promise<void> {
   const now = Date.now();
   const existing = readAll(familyCode);
@@ -60,6 +63,7 @@ export async function addSentenceBatchLocal(
     id: `${now}-${i}-${Math.random().toString(36).slice(2, 8)}`,
     text,
     sourceChars,
+    difficulty,
     createdAt: now,
     stats: INITIAL_STATS,
   }));

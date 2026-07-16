@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import type { CharacterDoc, SentenceDoc } from "../types";
+import type { CharacterDoc, SentenceDifficulty, SentenceDoc } from "../types";
 import { pickReviewSession } from "../lib/review";
 import {
+  DIFFICULTY_LABELS,
   generateSentences,
   isSentencePracticeConfigured,
-  STARS_PER_SENTENCE,
+  starsForDifficulty,
 } from "../lib/sentencePractice";
 import { saveSentenceBatch, saveSentenceReviewResult } from "../lib/store";
 import { playStarSound } from "../lib/sound";
 import { SentenceCard } from "../components/SentenceCard";
 import { StarBurst } from "../components/StarBurst";
 import { RecordButton } from "../components/RecordButton";
+import { GenerateSentenceDialog } from "../components/GenerateSentenceDialog";
 
 const SESSION_SIZE = 10;
 const GENERATE_COUNT = 5;
@@ -58,51 +60,36 @@ export function SentencePracticePage({
   const [starsEarned, setStarsEarned] = useState(0);
   const [burstKey, setBurstKey] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
 
   const initializedRef = useRef(false);
   const generationMarkerRef = useRef(0);
+  const knownChars = new Set(characters.map((c) => c.hanzi));
 
-  /** Asks which character to build sentences around; validates it's a single
-   * character she's actually learned. Returns null if cancelled/invalid. */
-  function promptForTargetChar(): string | null {
-    const input = window.prompt("要練習哪個漢字？請輸入一個她已經學過的字，例如「學」");
-    if (input === null) return null;
-    const trimmed = input.trim();
-    if ([...trimmed].length !== 1) {
-      alert("請只輸入一個漢字喔");
-      return null;
-    }
-    const known = new Set(characters.map((c) => c.hanzi));
-    if (!known.has(trimmed)) {
-      alert(`「${trimmed}」還沒有學過，請先在「新增漢字」加入這個字，再回來練習造句`);
-      return null;
-    }
-    return trimmed;
-  }
-
-  async function handleGenerate(targetChar: string) {
+  async function handleGenerate(targetChar: string, difficulty: SentenceDifficulty) {
+    setShowDialog(false);
     setPhase("generating");
     setError(null);
     try {
-      const knownChars = [...new Set(characters.map((c) => c.hanzi))];
-      const newTexts = await generateSentences(knownChars, targetChar, GENERATE_COUNT);
+      const knownCharsList = [...knownChars];
+      const newTexts = await generateSentences(
+        knownCharsList,
+        targetChar,
+        difficulty,
+        GENERATE_COUNT,
+      );
       if (newTexts.length === 0) {
         setPhase("error");
         setError(`這次沒有生成出用到「${targetChar}」的合適句子，換一個字再試試看！`);
         return;
       }
       generationMarkerRef.current = Date.now();
-      await saveSentenceBatch(familyCode, newTexts, [targetChar]);
+      await saveSentenceBatch(familyCode, newTexts, [targetChar], difficulty);
       setPhase("waiting-for-sync");
     } catch (err) {
       setPhase("error");
       setError(err instanceof Error ? err.message : "發生錯誤，請稍後再試一次");
     }
-  }
-
-  function handleGenerateClick() {
-    const targetChar = promptForTargetChar();
-    if (targetChar) void handleGenerate(targetChar);
   }
 
   // First load: reuse the existing bank if there's anything in it, otherwise
@@ -134,6 +121,14 @@ export function SentencePracticePage({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, sentences]);
+
+  const dialog = showDialog && (
+    <GenerateSentenceDialog
+      knownChars={knownChars}
+      onCancel={() => setShowDialog(false)}
+      onConfirm={handleGenerate}
+    />
+  );
 
   if (!isSentencePracticeConfigured) {
     return (
@@ -169,11 +164,12 @@ export function SentencePracticePage({
           <button
             className="btn btn-primary btn-block"
             style={{ marginTop: 12 }}
-            onClick={handleGenerateClick}
+            onClick={() => setShowDialog(true)}
           >
             重試一次
           </button>
         </div>
+        {dialog}
       </div>
     );
   }
@@ -187,11 +183,12 @@ export function SentencePracticePage({
           <button
             className="btn btn-primary btn-block"
             style={{ marginTop: 12 }}
-            onClick={handleGenerateClick}
+            onClick={() => setShowDialog(true)}
           >
             🪄 產生新句子
           </button>
         </div>
+        {dialog}
       </div>
     );
   }
@@ -222,7 +219,11 @@ export function SentencePracticePage({
             <Link to="/" className="btn btn-outline" style={{ flex: 1 }}>
               回首頁
             </Link>
-            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleGenerateClick}>
+            <button
+              className="btn btn-primary"
+              style={{ flex: 1 }}
+              onClick={() => setShowDialog(true)}
+            >
               🪄 產生新句子
             </button>
           </div>
@@ -238,6 +239,7 @@ export function SentencePracticePage({
             管理已存的句子（編輯／刪除）
           </Link>
         </div>
+        {dialog}
       </div>
     );
   }
@@ -247,7 +249,8 @@ export function SentencePracticePage({
   async function handleCorrect() {
     if (busy) return;
     setBusy(true);
-    setStarsEarned((s) => s + STARS_PER_SENTENCE);
+    const stars = starsForDifficulty(current.difficulty);
+    setStarsEarned((s) => s + stars);
     setBurstKey((k) => k + 1);
     playStarSound();
     speakPraise();
@@ -279,6 +282,7 @@ export function SentencePracticePage({
         <span className="pill">
           {index + 1} / {session.length}
         </span>
+        <span className="pill">{DIFFICULTY_LABELS[current.difficulty ?? "medium"]}</span>
         <span className="pill">⭐️ {starsEarned}</span>
       </div>
 
@@ -313,7 +317,7 @@ export function SentencePracticePage({
         }}
       >
         <button
-          onClick={handleGenerateClick}
+          onClick={() => setShowDialog(true)}
           style={{
             background: "none",
             border: "none",
@@ -336,6 +340,8 @@ export function SentencePracticePage({
           管理已存的句子
         </Link>
       </div>
+
+      {dialog}
     </div>
   );
 }

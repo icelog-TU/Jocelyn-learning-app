@@ -1,12 +1,30 @@
+import type { SentenceDifficulty } from "../types";
+
 export const isSentencePracticeConfigured = Boolean(import.meta.env.VITE_SENTENCE_API_URL);
 
-/** Stars awarded per correctly-read sentence (more than a single character,
- * since a whole sentence is a bigger accomplishment). */
-export const STARS_PER_SENTENCE = 3;
+export const DIFFICULTY_LABELS: Record<SentenceDifficulty, string> = {
+  easy: "簡單",
+  medium: "中等",
+  hard: "困難",
+};
+
+const STARS_BY_DIFFICULTY: Record<SentenceDifficulty, number> = {
+  easy: 2,
+  medium: 3,
+  hard: 5,
+};
+
+/** Stars awarded for correctly reading a sentence of this difficulty —
+ * harder (longer) sentences are worth more. Falls back to "medium" for
+ * sentences saved before difficulty existed. */
+export function starsForDifficulty(difficulty: SentenceDifficulty | undefined): number {
+  return STARS_BY_DIFFICULTY[difficulty ?? "medium"];
+}
 
 export async function generateSentences(
   knownChars: string[],
   targetChar: string,
+  difficulty: SentenceDifficulty,
   count: number,
 ): Promise<string[]> {
   const endpoint = import.meta.env.VITE_SENTENCE_API_URL;
@@ -17,7 +35,7 @@ export async function generateSentences(
   const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ knownChars, targetChar, count }),
+    body: JSON.stringify({ knownChars, targetChar, difficulty, count }),
   });
 
   if (!res.ok) {

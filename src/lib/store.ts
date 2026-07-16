@@ -19,7 +19,7 @@ import {
   subscribeSentencesLocal,
   updateSentenceTextLocal,
 } from "./localSentences";
-import type { CharacterDoc, NewCharacterInput, SentenceDoc } from "../types";
+import type { CharacterDoc, NewCharacterInput, SentenceDifficulty, SentenceDoc } from "../types";
 
 export const usingCloudSync = isFirebaseConfigured;
 
@@ -69,10 +69,11 @@ export function saveSentenceBatch(
   familyCode: string,
   texts: string[],
   sourceChars: string[],
+  difficulty: SentenceDifficulty,
 ): Promise<void> {
   return isFirebaseConfigured
-    ? addSentenceBatch(familyCode, texts, sourceChars)
-    : addSentenceBatchLocal(familyCode, texts, sourceChars);
+    ? addSentenceBatch(familyCode, texts, sourceChars, difficulty)
+    : addSentenceBatchLocal(familyCode, texts, sourceChars, difficulty);
 }
 
 export function saveSentenceReviewResult(

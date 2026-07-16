@@ -20,10 +20,13 @@ export interface NewCharacterInput {
   zhuyin: string;
 }
 
+export type SentenceDifficulty = "easy" | "medium" | "hard";
+
 export interface SentenceDoc {
   id: string;
   text: string;
   sourceChars: string[];
+  difficulty: SentenceDifficulty;
   createdAt: number;
   stats: CharacterStats;
 }

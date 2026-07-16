@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import type { CharacterDoc, SentenceDoc } from "../types";
 import { dateKey } from "../lib/characters";
 import { countDueForReview } from "../lib/review";
-import { STARS_PER_SENTENCE } from "../lib/sentencePractice";
+import { starsForDifficulty } from "../lib/sentencePractice";
 
 interface Props {
   characters: CharacterDoc[];
@@ -20,7 +20,7 @@ export function HomePage({
   onChangeFamilyCode,
 }: Props) {
   const sentenceStars = sentences.reduce(
-    (sum, s) => sum + s.stats.correctCount * STARS_PER_SENTENCE,
+    (sum, s) => sum + s.stats.correctCount * starsForDifficulty(s.difficulty),
     0,
   );
   const totalStars =
