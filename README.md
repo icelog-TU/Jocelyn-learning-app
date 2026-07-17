@@ -65,7 +65,7 @@ npm run dev
 
 1. **建立 Cloudflare 帳號**（[dash.cloudflare.com](https://dash.cloudflare.com/sign-up)，免費，不需要信用卡）。
 
-2. **設定並部署 Worker**：
+2. **第一次手動部署 Worker**（之後就不用再手動了，見下方「Worker 自動部署」）：
 
    ```bash
    cd worker
@@ -81,7 +81,7 @@ npm run dev
    ```
    把這個網址記下來。
 
-3. `worker/wrangler.toml` 裡的 `ALLOWED_ORIGIN` 預設是 `https://icelog-tu.github.io`（本專案的 GitHub Pages 網址），Worker 只會接受從這個網址發出的請求，其他來源一律拒絕。如果你的網址不同，記得改這裡再重新 `npm run deploy`。
+3. `worker/wrangler.toml` 裡的 `ALLOWED_ORIGIN` 預設是 `https://icelog-tu.github.io`（本專案的 GitHub Pages 網址），Worker 只會接受從這個網址發出的請求，其他來源一律拒絕。如果你的網址不同，記得改這裡再重新部署。
 
 4. 在本機 `.env` 加上這一行（值換成你自己的 Worker 網址）：
 
@@ -92,6 +92,19 @@ npm run dev
 5. **強烈建議**到 [OpenAI 後台的 Usage limits](https://platform.openai.com/settings/organization/limits) 設定每月花費上限（例如 5 美元）。這是最後一道保險，就算 Worker 網址不小心外流，也不會產生意外的高額帳單。
 
 6. 重新啟動 `npm run dev` 就能在本機測試「AI 造句練習」了。部署版本要怎麼接上這個功能，見下方「部署」章節的 secrets 設定。
+
+### Worker 自動部署
+
+跟前端一樣，`worker/` 資料夾的程式碼有變動並推送到 `main` 或 `claude/hanzi-english-learning-app-bafjgg` 分支時，GitHub Actions 會自動執行 `npm run deploy` 把 Worker 部署到 Cloudflare，不需要再手動回到自己電腦跑指令。
+
+這需要在 repo 的 **Settings → Secrets and variables → Actions** 設定兩個 secret（一次性設定）：
+
+```
+CLOUDFLARE_API_TOKEN     # Cloudflare Dashboard → My Profile → API Tokens 建立，權限選「Edit Cloudflare Workers」範本
+CLOUDFLARE_ACCOUNT_ID    # Cloudflare Dashboard 首頁可以複製到
+```
+
+`OPENAI_API_KEY` 是用 `npx wrangler secret put OPENAI_API_KEY` 另外設定在 Cloudflare 那邊的，不受一般部署影響，重新部署 Worker 不會清掉它，不需要重複設定。
 
 ## 部署（GitHub Pages，自動部署）
 
