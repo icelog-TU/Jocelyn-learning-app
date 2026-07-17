@@ -240,11 +240,18 @@ export default {
         : "";
 
     const referenceHint =
-      referenceSentences.length > 0
-        ? `這位家長之前針對「${targetText}」寫過或修改過以下例句，家長認為這些例句比較自然道地，` +
-          `請參考這些例句的用字風格、詞語搭配方式來造句（不用照抄，也不用每句都模仿，但盡量學習類似的` +
-          `自然表達方式，避免出現跟這些例句風格差很多的生硬組合）：\n${referenceSentences.join("\n")}\n\n`
-        : "";
+      referenceSentences.length === 0
+        ? ""
+        : difficulty === "easy"
+          ? `這位家長之前針對「${targetText}」寫過或修改過以下例句，這些例句示範了「${targetText}」在不同情境、` +
+            `不同詞性下的用法與意思：\n${referenceSentences.join("\n")}\n\n` +
+            `現在要生成的是「簡單」難度的句子。請不要直接照抄整句，也不要另外發明跟這些例句用法無關的新句子；` +
+            `而是把上面每個例句所展示的用法或意思，個別濃縮改寫成長度更短、更簡單的句子——去掉額外的子句、` +
+            `細節和修飾語，只留下這個用法最核心的意思，讓句子符合下面的簡單難度長度要求。盡量讓這一批句子` +
+            `合起來覆蓋到上面例句裡出現過的不同用法，避免每一句都只簡化同一種用法。\n\n`
+          : `這位家長之前針對「${targetText}」寫過或修改過以下例句，家長認為這些例句比較自然道地，` +
+            `請參考這些例句的用字風格、詞語搭配方式來造句（不用照抄，也不用每句都模仿，但盡量學習類似的` +
+            `自然表達方式，避免出現跟這些例句風格差很多的生硬組合）：\n${referenceSentences.join("\n")}\n\n`;
 
     const [minLen, maxLen] = DIFFICULTY_LENGTH_RANGE[difficulty];
 
