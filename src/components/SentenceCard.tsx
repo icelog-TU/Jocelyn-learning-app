@@ -12,6 +12,22 @@ interface Props {
 
 const FULLWIDTH_PUNCTUATION = new Set(["，", "。", "！", "？", "、"]);
 
+/** Tone marks are always the last character pinyin-zhuyin appends to a
+ * syllable's zhuyin string (2nd/3rd/4th tone, or the neutral-tone dot).
+ * Printed books render these as a small diacritic beside the phonetic
+ * symbols, not as another full-size symbol, so we split it out and
+ * position it separately. */
+const TONE_MARKS = new Set(["ˊ", "ˇ", "ˋ", "˙"]);
+
+function splitZhuyin(zhuyin: string): { base: string[]; tone?: string } {
+  const chars = Array.from(zhuyin);
+  const last = chars[chars.length - 1];
+  if (chars.length > 1 && TONE_MARKS.has(last)) {
+    return { base: chars.slice(0, -1), tone: last };
+  }
+  return { base: chars };
+}
+
 /** Max characters per reading column before wrapping to the next column
  * (to the left), matching how a printed page of vertical Chinese text
  * breaks into columns rather than one endless line. */
@@ -61,23 +77,59 @@ export function SentenceCard({ sentence, extraActions }: Props) {
                 >
                   {c.char}
                 </span>
-                {c.zhuyin && (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    {Array.from(c.zhuyin).map((symbol, si) => (
-                      <span
-                        key={si}
-                        style={{
-                          fontSize: "0.68rem",
-                          color: "var(--color-secondary)",
-                          fontWeight: 700,
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        {symbol}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {c.zhuyin &&
+                  (() => {
+                    const { base, tone } = splitZhuyin(c.zhuyin);
+                    return (
+                      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        {tone === "˙" && (
+                          <span
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              top: -3,
+                              left: -5,
+                              fontSize: "0.5rem",
+                              color: "var(--color-secondary)",
+                              fontWeight: 700,
+                              lineHeight: 1,
+                            }}
+                          >
+                            {tone}
+                          </span>
+                        )}
+                        {base.map((symbol, si) => (
+                          <span
+                            key={si}
+                            style={{
+                              fontSize: "0.68rem",
+                              color: "var(--color-secondary)",
+                              fontWeight: 700,
+                              lineHeight: 1.2,
+                            }}
+                          >
+                            {symbol}
+                          </span>
+                        ))}
+                        {tone && tone !== "˙" && (
+                          <span
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              top: -3,
+                              right: -7,
+                              fontSize: "0.5rem",
+                              color: "var(--color-secondary)",
+                              fontWeight: 700,
+                              lineHeight: 1,
+                            }}
+                          >
+                            {tone}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
               </div>
             ))}
           </div>
