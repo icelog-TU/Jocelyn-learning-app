@@ -90,9 +90,10 @@ export const GIFT_OPTIONS: GiftOption[] = [
   { id: "special", label: "特別禮物", emoji: "💝", cost: 10, hearts: 4 },
 ];
 
-/** Heart thresholds that unlock a new affection-stage interaction. Index 0
- * (the greeting) is always unlocked; these gate stages 1-3. */
-export const AFFECTION_MILESTONES = [3, 5, 10];
+/** Heart thresholds that unlock a new affection-stage interaction. Stage 0
+ * ("初次見面", just met) is always unlocked; these gate stages 1-4
+ * ("打招呼"／"一起玩"／"一封信"／"最好的朋友"). */
+export const AFFECTION_MILESTONES = [3, 5, 8, 10];
 
 export function speciesById(id: string): CreatureSpecies | undefined {
   return CREATURE_SPECIES.find((s) => s.id === id);

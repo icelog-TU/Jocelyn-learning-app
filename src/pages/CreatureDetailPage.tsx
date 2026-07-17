@@ -3,12 +3,13 @@ import { Link, useParams } from "react-router-dom";
 import type { AffectionDoc, CharacterDoc, CollectedPrizeDoc, CreatureVariant, SentenceDoc } from "../types";
 import { computeTotalStars } from "../lib/sentencePractice";
 import { giveGiftToCreature } from "../lib/store";
-import { speak } from "../lib/speech";
-import { playHeartSound, playSpendSound } from "../lib/sound";
-import { HeartMeter } from "../components/HeartMeter";
+import { speakAsRole } from "../lib/voiceProvider";
+import { playEnvelopeSound, playHeartSound, playInsufficientSound, playPatSound, playSpendSound } from "../lib/sound";
+import { FriendshipPath } from "../components/FriendshipPath";
+import { GiftCard } from "../components/GiftCard";
 import { FloatingDelta } from "../components/FloatingDelta";
+import { StarBurst } from "../components/StarBurst";
 import {
-  AFFECTION_MILESTONES,
   CREATURE_VARIANTS,
   GACHA_COST,
   GIFT_OPTIONS,
@@ -17,7 +18,17 @@ import {
   prizeKey,
   speciesById,
 } from "../lib/gachaCatalog";
-import { AFFECTION_STAGE_TITLES, affectionStageText } from "../lib/affectionContent";
+import {
+  currentStageIndex,
+  firstMeetingText,
+  letterText,
+  randomGreeting,
+  randomPatReaction,
+  randomThanks,
+  secretIntroText,
+  speciesFacts,
+} from "../lib/affectionContent";
+import "./CreatureDetailPage.css";
 
 interface Props {
   characters: CharacterDoc[];
@@ -26,6 +37,8 @@ interface Props {
   affection: AffectionDoc[];
   familyCode: string;
 }
+
+const MOOD_EMOJI = ["😐", "🙂", "😊", "🥰", "🤩"];
 
 export function CreatureDetailPage({ characters, sentences, prizes, affection, familyCode }: Props) {
   const { speciesId = "", variant = "" } = useParams<{ speciesId: string; variant: string }>();
@@ -40,7 +53,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
   const totalStars = computeTotalStars(characters, sentences);
   const spentOnDraws = prizes.length * GACHA_COST;
   const spentOnGifts = affection.reduce((sum, a) => sum + a.starsSpent, 0);
-  const available = totalStars - spentOnDraws - spentOnGifts;
+  const available = Math.max(0, totalStars - spentOnDraws - spentOnGifts);
 
   // Hooks must run unconditionally every render, so they're all declared up
   // here, above the early-return guards below.
@@ -48,6 +61,15 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
   const [spendFx, setSpendFx] = useState<{ cost: number; key: number }>({ cost: 0, key: 0 });
   const [heartFx, setHeartFx] = useState<{ gain: number; key: number }>({ gain: 0, key: 0 });
   const [giving, setGiving] = useState(false);
+  const [shakeKey, setShakeKey] = useState(0);
+  const [insufficientMsg, setInsufficientMsg] = useState(false);
+  const [giftFlyFx, setGiftFlyFx] = useState<{ emoji: string; key: number }>({ emoji: "", key: 0 });
+  const [reactKey, setReactKey] = useState(0);
+  const [burstKey, setBurstKey] = useState(0);
+  const [envelopeOpen, setEnvelopeOpen] = useState(false);
+  const [greetingText, setGreetingText] = useState("");
+  const [patText, setPatText] = useState("");
+  const [patKey, setPatKey] = useState(0);
   const animatingRef = useRef(false);
   const tickTimerRef = useRef<number | null>(null);
 
@@ -61,6 +83,14 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
       if (tickTimerRef.current !== null) window.clearInterval(tickTimerRef.current);
     };
   }, []);
+
+  // Reset per-creature ephemeral UI state when navigating between creatures
+  // (the route component instance is reused, so this can't rely on remount).
+  useEffect(() => {
+    setEnvelopeOpen(false);
+    setGreetingText("");
+    setPatText("");
+  }, [key]);
 
   function animateSpend(from: number, to: number) {
     animatingRef.current = true;
@@ -79,11 +109,22 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
   }
 
   async function handleGift(giftId: string) {
+    if (giving || !species) return;
     const gift = GIFT_OPTIONS.find((g) => g.id === giftId);
-    if (!gift || available < gift.cost || giving || !species) return;
+    if (!gift) return;
+
+    if (available < gift.cost) {
+      playInsufficientSound();
+      setShakeKey(Date.now());
+      setInsufficientMsg(true);
+      window.setTimeout(() => setInsufficientMsg(false), 2200);
+      return;
+    }
+
     setGiving(true);
     playSpendSound();
     setSpendFx({ cost: gift.cost, key: Date.now() });
+    setGiftFlyFx({ emoji: gift.emoji, key: Date.now() });
     animateSpend(displayedAvailable, displayedAvailable - gift.cost);
 
     await giveGiftToCreature(familyCode, speciesId, typedVariant, gift.hearts, gift.cost);
@@ -91,8 +132,42 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
     window.setTimeout(() => {
       playHeartSound();
       setHeartFx({ gain: gift.hearts, key: Date.now() });
+      setBurstKey((k) => k + 1);
+      setReactKey(Date.now());
+      const thanks = randomThanks(typedVariant);
+      speakAsRole(thanks, typedVariant);
       setGiving(false);
-    }, 450);
+    }, 500);
+  }
+
+  function handlePat() {
+    if (currentStageIndex(hearts) < 2) return;
+    playPatSound();
+    setReactKey(Date.now());
+    const reaction = randomPatReaction(typedVariant);
+    setPatText(reaction);
+    setPatKey(Date.now());
+    speakAsRole(reaction, typedVariant);
+  }
+
+  function handleGreet() {
+    if (!species) return;
+    const line = randomGreeting(`${species.name}${VARIANT_LABELS[typedVariant]}`, typedVariant);
+    setGreetingText(line);
+    setReactKey(Date.now());
+    speakAsRole(line, typedVariant);
+  }
+
+  function handleToggleEnvelope() {
+    if (!species) return;
+    setEnvelopeOpen((open) => {
+      const next = !open;
+      if (next) {
+        playEnvelopeSound();
+        speakAsRole(letterText(`${species.name}${VARIANT_LABELS[typedVariant]}`, typedVariant), typedVariant);
+      }
+      return next;
+    });
   }
 
   if (!species || !isValidVariant) {
@@ -108,99 +183,192 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
 
   const ownedCount = prizes.filter((p) => p.speciesId === speciesId && p.variant === typedVariant).length;
   const displayName = `${species.name}${VARIANT_LABELS[typedVariant]}`;
+  const stageIdx = currentStageIndex(hearts);
+  const moodEmoji = MOOD_EMOJI[stageIdx];
 
-  if (ownedCount === 0) {
+  function renderStagePanel() {
+    if (!species) return null;
+
+    if (stageIdx === 0) {
+      const text = firstMeetingText(displayName, typedVariant);
+      return (
+        <>
+          <p className="stage-panel-title">🌱 初次見面</p>
+          <p style={{ margin: "0 0 10px" }}>{text}</p>
+          <button className="btn btn-outline" onClick={() => speakAsRole(text, typedVariant)}>
+            🔊 播放
+          </button>
+          <p style={{ marginTop: 12, fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
+            送禮物讓好感度增加，就可以打招呼囉！
+          </p>
+        </>
+      );
+    }
+
+    if (stageIdx === 1) {
+      return (
+        <>
+          <p className="stage-panel-title">👋 打招呼</p>
+          {greetingText && <p style={{ margin: "0 0 10px", fontSize: "1.1rem" }}>{greetingText}</p>}
+          <button className="btn btn-primary btn-block" onClick={handleGreet}>
+            🔊 跟{displayName}打招呼
+          </button>
+        </>
+      );
+    }
+
+    if (stageIdx === 2) {
+      return (
+        <>
+          <p className="stage-panel-title">🤗 一起玩</p>
+          <p style={{ margin: "0 0 10px", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
+            點一下上面的{displayName}，摸摸牠的頭！
+          </p>
+          {patText && (
+            <p style={{ fontWeight: 700, fontSize: "1.1rem", margin: 0 }}>{patText}</p>
+          )}
+        </>
+      );
+    }
+
+    if (stageIdx === 3) {
+      return (
+        <>
+          <p className="stage-panel-title">💌 一封信</p>
+          {envelopeOpen ? (
+            <div className="envelope-reveal" style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "2.5rem" }}>
+                {species.emoji}✨
+              </div>
+              <p style={{ margin: "10px 0", fontSize: "1.05rem" }}>{letterText(displayName, typedVariant)}</p>
+              <button
+                className="btn btn-outline"
+                onClick={() => speakAsRole(letterText(displayName, typedVariant), typedVariant)}
+              >
+                🔊 播放
+              </button>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center" }}>
+              <span className="envelope" onClick={handleToggleEnvelope} role="button" aria-label="打開信封">
+                💌
+              </span>
+              <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", marginTop: 8 }}>
+                點一下信封，打開看看！
+              </p>
+            </div>
+          )}
+        </>
+      );
+    }
+
+    const facts = speciesFacts(speciesId);
+    const secretLine = secretIntroText(displayName, typedVariant);
     return (
-      <div className="screen">
-        <h1 className="page-title">你還沒有轉到這隻</h1>
-        <p style={{ color: "var(--color-text-muted)" }}>快去轉蛋看看能不能轉到「{displayName}」吧！</p>
-        <Link to="/gacha" className="btn btn-primary btn-block">
-          回轉蛋頁
-        </Link>
-      </div>
+      <>
+        <p className="stage-panel-title">💖 最好的朋友</p>
+        <p style={{ margin: "0 0 10px" }}>{secretLine}</p>
+        <div className="profile-card-grid">
+          <div className="profile-card-row">
+            <span className="profile-card-icon">😍</span>
+            <div>
+              <span className="profile-card-label">喜歡</span>
+              <span className="profile-card-value">{facts?.likes}</span>
+            </div>
+          </div>
+          <div className="profile-card-row">
+            <span className="profile-card-icon">😱</span>
+            <div>
+              <span className="profile-card-label">害怕</span>
+              <span className="profile-card-value">{facts?.fear}</span>
+            </div>
+          </div>
+          <div className="profile-card-row">
+            <span className="profile-card-icon">🤫</span>
+            <div>
+              <span className="profile-card-label">小秘密</span>
+              <span className="profile-card-value">{facts?.secret}</span>
+            </div>
+          </div>
+        </div>
+        <button
+          className="btn btn-outline btn-block"
+          style={{ marginTop: 12 }}
+          onClick={() => speakAsRole(`${secretLine}${facts?.secret ?? ""}`, typedVariant)}
+        >
+          🔊 播放秘密
+        </button>
+      </>
     );
   }
 
-  const nextMilestone = AFFECTION_MILESTONES.find((m) => hearts < m);
-
   return (
     <div className="screen">
-      <h1 className="page-title">
-        {species.emoji}
-        {VARIANT_BADGES[typedVariant]} {displayName}
-      </h1>
+      <h1 className="page-title">{displayName}</h1>
       {ownedCount > 1 && (
         <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", marginTop: -8 }}>
           已經轉到 {ownedCount} 隻
         </p>
       )}
 
-      <div className="card" style={{ marginBottom: 16, textAlign: "center", position: "relative" }}>
-        <FloatingDelta text={`+${heartFx.gain}❤️`} triggerKey={heartFx.key} color="var(--color-success)" />
-        <HeartMeter hearts={hearts} />
-        <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
-          {nextMilestone ? `再 ${nextMilestone - hearts} 點好感度解鎖新互動` : "已經是最要好的朋友了！"}
+      <div className="card" style={{ marginBottom: 16, textAlign: "center" }}>
+        <div
+          className={`creature-portrait${stageIdx >= 2 ? " tappable" : ""}`}
+          onClick={stageIdx >= 2 ? handlePat : undefined}
+          role={stageIdx >= 2 ? "button" : undefined}
+          aria-label={stageIdx >= 2 ? "摸摸頭" : undefined}
+        >
+          <div
+            key={reactKey}
+            className={`creature-emoji-wrap${reactKey ? " creature-reacting" : ""}`}
+            style={{ "--bob-amount": `-${4 + stageIdx * 2}px` } as React.CSSProperties}
+          >
+            <span className="creature-emoji-big">{species.emoji}</span>
+            <span className="creature-badge">{VARIANT_BADGES[typedVariant]}</span>
+          </div>
+          <span className="creature-mood-badge">{moodEmoji}</span>
+          {giftFlyFx.key !== 0 && (
+            <span key={giftFlyFx.key} className="gift-fly">
+              {giftFlyFx.emoji}
+            </span>
+          )}
+          <StarBurst burstKey={burstKey} emoji="❤️" />
+          <FloatingDelta text={`+${heartFx.gain}❤️`} triggerKey={heartFx.key} color="var(--color-success)" />
+          <FloatingDelta text={patText} triggerKey={patKey} color="var(--color-primary-dark)" />
         </div>
+
+        <FriendshipPath hearts={hearts} />
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <p style={{ fontWeight: 700, margin: "0 0 6px", position: "relative" }}>
+        <p style={{ fontWeight: 700, margin: "0 0 10px", position: "relative", textAlign: "center" }}>
           <FloatingDelta text={`-${spendFx.cost}⭐️`} triggerKey={spendFx.key} color="var(--color-danger)" />
           ⭐️ 可用星星：
-          <span key={spendFx.key} className={spendFx.key ? "pill-pop" : undefined} style={{ display: "inline-block" }}>
-            {displayedAvailable}
+          <span key={shakeKey} className={`star-balance${shakeKey ? " shake" : ""}`}>
+            <span key={spendFx.key} className={spendFx.key ? "pill-pop" : undefined} style={{ display: "inline-block" }}>
+              {displayedAvailable}
+            </span>
           </span>
         </p>
-        <p style={{ fontWeight: 700, margin: "0 0 10px" }}>🎁 送禮物</p>
+        {insufficientMsg && (
+          <p style={{ textAlign: "center", color: "var(--color-danger)", fontSize: "0.85rem", margin: "0 0 10px" }}>
+            再學幾個字，就有星星送禮物囉
+          </p>
+        )}
         <div style={{ display: "flex", gap: 8 }}>
           {GIFT_OPTIONS.map((gift) => (
-            <button
+            <GiftCard
               key={gift.id}
-              className="btn btn-secondary"
-              style={{ flex: 1, fontSize: "0.8rem", lineHeight: 1.5 }}
-              disabled={available < gift.cost || giving}
+              gift={gift}
+              affordable={available >= gift.cost}
+              disabled={giving}
               onClick={() => handleGift(gift.id)}
-            >
-              {gift.emoji} {gift.label}
-              <br />
-              {gift.cost}★ → +{gift.hearts}❤️
-            </button>
+            />
           ))}
         </div>
       </div>
 
-      <div className="card">
-        <p style={{ fontWeight: 700, margin: "0 0 12px" }}>💬 互動紀錄</p>
-        {AFFECTION_STAGE_TITLES.map((title, stage) => {
-          const threshold = stage === 0 ? 0 : AFFECTION_MILESTONES[stage - 1];
-          const unlocked = hearts >= threshold;
-          const text = unlocked ? affectionStageText(stage, speciesId, displayName, typedVariant) : "";
-          return (
-            <div key={stage} style={{ marginBottom: 12, opacity: unlocked ? 1 : 0.5 }}>
-              <p style={{ fontWeight: 700, margin: "0 0 4px", fontSize: "0.9rem" }}>
-                {unlocked ? `🔓 ${title}` : `🔒 神秘互動${stage > 0 ? `（❤️${threshold}）` : ""}`}
-              </p>
-              {unlocked ? (
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                  <button
-                    className="btn btn-outline"
-                    style={{ fontSize: "0.8rem", padding: "6px 10px", flexShrink: 0 }}
-                    onClick={() => speak(text)}
-                    aria-label="播放這段互動"
-                  >
-                    🔊 播放
-                  </button>
-                  <p style={{ margin: 0, fontSize: "0.95rem", flex: 1 }}>{text}</p>
-                </div>
-              ) : (
-                <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
-                  多送一些禮物就可以解鎖囉，還不知道會發生什麼事喔！
-                </p>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <div className="card">{renderStagePanel()}</div>
 
       <Link to="/gacha" className="btn btn-outline btn-block" style={{ marginTop: 16 }}>
         回轉蛋頁

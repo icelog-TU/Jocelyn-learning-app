@@ -1,0 +1,45 @@
+.gift-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 6px 10px;
+  border-radius: 18px;
+  border: none;
+  cursor: pointer;
+  background: #fff;
+  box-shadow: 0 2px 0 rgba(58, 46, 38, 0.08);
+}
+
+.gift-card-emoji {
+  font-size: 2.4rem;
+  line-height: 1;
+}
+
+.gift-card-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.gift-card-row {
+  display: flex;
+  gap: 1px;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.gift-card.affordable {
+  background: #fff8ee;
+}
+
+.gift-card.unaffordable {
+  opacity: 0.55;
+}
+
+.gift-card:active {
+  transform: scale(0.96);
+}

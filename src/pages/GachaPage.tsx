@@ -36,7 +36,7 @@ export function GachaPage({ characters, sentences, prizes, affection, familyCode
   const totalStars = computeTotalStars(characters, sentences);
   const spentOnDraws = prizes.length * GACHA_COST;
   const spentOnGifts = affection.reduce((sum, a) => sum + a.starsSpent, 0);
-  const available = totalStars - spentOnDraws - spentOnGifts;
+  const available = Math.max(0, totalStars - spentOnDraws - spentOnGifts);
   const canDraw = available >= GACHA_COST && !drawing;
 
   const heartsByKey = new Map<string, number>();

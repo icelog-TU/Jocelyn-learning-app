@@ -1,0 +1,45 @@
+import { Fragment } from "react";
+import "./FriendshipPath.css";
+import { AFFECTION_STAGES, currentStageIndex } from "../lib/affectionContent";
+
+interface Props {
+  hearts: number;
+}
+
+/** A 5-stage "friendship growth path" for affection, replacing a bare heart
+ * count with something a child who can't read numbers yet can still follow:
+ * locked (grey) vs unlocked (colored) nodes, the current stage pulsing, and
+ * a plain-language "X more hearts unlocks Y" hint below. */
+export function FriendshipPath({ hearts }: Props) {
+  const currentIdx = currentStageIndex(hearts);
+  const next = AFFECTION_STAGES[currentIdx + 1];
+
+  return (
+    <div>
+      <div className="friendship-path">
+        {AFFECTION_STAGES.map((stage, i) => {
+          const unlocked = hearts >= stage.threshold;
+          const isCurrent = i === currentIdx;
+          return (
+            <Fragment key={stage.title}>
+              {i > 0 && (
+                <div className={`friendship-line${hearts >= stage.threshold ? " filled" : ""}`} />
+              )}
+              <div className="friendship-node-wrap">
+                <div className={`friendship-node${unlocked ? " unlocked" : ""}${isCurrent ? " current" : ""}`}>
+                  {unlocked ? stage.icon : "🔒"}
+                </div>
+                <div className="friendship-node-label">{stage.title}</div>
+              </div>
+            </Fragment>
+          );
+        })}
+      </div>
+      <p className="friendship-next-hint">
+        {next
+          ? `再得到 ${next.threshold - hearts} 顆心，就可以「${next.title}」！`
+          : "已經是最要好的朋友了！💖"}
+      </p>
+    </div>
+  );
+}

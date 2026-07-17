@@ -1,0 +1,189 @@
+.creature-portrait {
+  position: relative;
+  padding: 20px 0 4px;
+}
+
+.creature-portrait.tappable {
+  cursor: pointer;
+}
+
+.creature-emoji-wrap {
+  position: relative;
+  display: inline-block;
+  animation: creature-idle-bob 2.6s ease-in-out infinite;
+}
+
+@keyframes creature-idle-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(var(--bob-amount, -4px));
+  }
+}
+
+.creature-emoji-wrap.creature-reacting {
+  animation: creature-bounce-react 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes creature-bounce-react {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  30% {
+    transform: scale(1.25) rotate(-8deg);
+  }
+  55% {
+    transform: scale(1.1) rotate(6deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.creature-emoji-big {
+  font-size: 4.6rem;
+  line-height: 1;
+  display: inline-block;
+}
+
+.creature-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -10px;
+  font-size: 1.8rem;
+}
+
+.creature-mood-badge {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(38px);
+  font-size: 1.5rem;
+}
+
+.gift-fly {
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  font-size: 2.2rem;
+  pointer-events: none;
+  animation: gift-fly-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes gift-fly-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.4) rotate(-20deg);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -90px) scale(1.15) rotate(10deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -110px) scale(0.8) rotate(0deg);
+  }
+}
+
+.star-balance {
+  display: inline-block;
+}
+
+.star-balance.shake {
+  animation: star-balance-shake 0.5s ease-in-out;
+}
+
+@keyframes star-balance-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-8px) rotate(-4deg);
+  }
+  40% {
+    transform: translateX(8px) rotate(4deg);
+  }
+  60% {
+    transform: translateX(-6px) rotate(-3deg);
+  }
+  80% {
+    transform: translateX(6px) rotate(3deg);
+  }
+}
+
+.stage-panel-title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pat-target {
+  font-size: 3.2rem;
+  cursor: pointer;
+  user-select: none;
+  display: inline-block;
+}
+
+.pat-target:active {
+  transform: scale(0.92);
+}
+
+.envelope {
+  font-size: 3.2rem;
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+  display: block;
+}
+
+.envelope-reveal {
+  animation: envelope-reveal-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes envelope-reveal-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.profile-card-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.profile-card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff8ee;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.profile-card-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.profile-card-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  display: block;
+}
+
+.profile-card-value {
+  font-size: 1rem;
+  font-weight: 700;
+}

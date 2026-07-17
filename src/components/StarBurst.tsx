@@ -2,6 +2,7 @@ import "./StarBurst.css";
 
 interface Props {
   burstKey: number;
+  emoji?: string;
 }
 
 const OFFSETS = [
@@ -12,7 +13,7 @@ const OFFSETS = [
   { x: 30, y: -60, rotate: 15, delay: 0.2 },
 ];
 
-export function StarBurst({ burstKey }: Props) {
+export function StarBurst({ burstKey, emoji = "⭐️" }: Props) {
   if (burstKey === 0) return null;
   return (
     <div className="star-burst" key={burstKey}>
@@ -29,7 +30,7 @@ export function StarBurst({ burstKey }: Props) {
             } as React.CSSProperties
           }
         >
-          ⭐️
+          {emoji}
         </span>
       ))}
     </div>

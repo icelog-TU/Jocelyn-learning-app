@@ -67,6 +67,85 @@ export function playSpendSound(): void {
   });
 }
 
+/** A tiny single pop for a playful tap (petting the creature) — much
+ * shorter and lighter than the other effects, so it doesn't feel heavy on
+ * repeated taps. */
+export function playPatSound(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+  const start = ctx.currentTime;
+  osc.frequency.setValueAtTime(700, start);
+  osc.frequency.exponentialRampToValueAtTime(1000, start + 0.08);
+
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(0.2, start + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, start + 0.12);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(start);
+  osc.stop(start + 0.12);
+}
+
+/** A gentle "not quite yet" blip for trying to buy a gift without enough
+ * stars — soft and friendly, not a harsh error buzzer. */
+export function playInsufficientSound(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const notes = [392.0, 349.23]; // G4 -> F4, small gentle dip
+  const startTime = ctx.currentTime;
+
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+
+    const noteStart = startTime + i * 0.11;
+    const noteEnd = noteStart + 0.2;
+    gain.gain.setValueAtTime(0, noteStart);
+    gain.gain.linearRampToValueAtTime(0.16, noteStart + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, noteEnd);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(noteStart);
+    osc.stop(noteEnd);
+  });
+}
+
+/** A quick bright arpeggio for an envelope opening. */
+export function playEnvelopeSound(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const notes = [659.25, 830.61, 987.77]; // E5 G#5 B5
+  const startTime = ctx.currentTime;
+
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.value = freq;
+
+    const noteStart = startTime + i * 0.06;
+    const noteEnd = noteStart + 0.2;
+    gain.gain.setValueAtTime(0, noteStart);
+    gain.gain.linearRampToValueAtTime(0.2, noteStart + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, noteEnd);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(noteStart);
+    osc.stop(noteEnd);
+  });
+}
+
 /** A warm double-pulse "thump-thump" for a heart landing on a creature —
  * distinct in timbre from both the star and spend sounds. */
 export function playHeartSound(): void {
