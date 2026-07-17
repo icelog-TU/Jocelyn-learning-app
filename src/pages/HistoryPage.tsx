@@ -83,6 +83,12 @@ function formatDate(key: string): string {
 
 export function HistoryPage({ characters, sentences, weakChars, familyCode }: Props) {
   const [tab, setTab] = useState<"characters" | "sentences">("characters");
+  const [query, setQuery] = useState("");
+  const weakCharSet = new Set(weakChars.map((w) => w.hanzi));
+  const trimmedQuery = query.trim();
+  const filteredCharacters = trimmedQuery
+    ? characters.filter((c) => c.hanzi.includes(trimmedQuery))
+    : characters;
 
   return (
     <div className="screen">
@@ -107,11 +113,73 @@ export function HistoryPage({ characters, sentences, weakChars, familyCode }: Pr
 
       {tab === "characters" ? (
         <>
+          <CharacterLookup characters={characters} weakChars={weakCharSet} query={query} onQueryChange={setQuery} />
           <WeakCharsSection weakChars={weakChars} familyCode={familyCode} />
-          <CharacterHistory characters={characters} familyCode={familyCode} />
+          {(!trimmedQuery || filteredCharacters.length > 0) && (
+            <CharacterHistory characters={filteredCharacters} familyCode={familyCode} />
+          )}
         </>
       ) : (
         <SentenceHistory sentences={sentences} />
+      )}
+    </div>
+  );
+}
+
+function CharacterLookup({
+  characters,
+  weakChars,
+  query,
+  onQueryChange,
+}: {
+  characters: CharacterDoc[];
+  weakChars: Set<string>;
+  query: string;
+  onQueryChange: (value: string) => void;
+}) {
+  const trimmed = query.trim();
+  const exact = trimmed ? characters.find((c) => c.hanzi === trimmed) : undefined;
+  const partial = trimmed
+    ? characters.filter((c) => c.hanzi !== trimmed && c.hanzi.includes(trimmed))
+    : [];
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <p style={{ fontWeight: 700, margin: "0 0 10px" }}>🔍 查詢是否學過</p>
+      <input
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        placeholder="輸入一個字或詞看看有沒有學過"
+      />
+      {trimmed && (
+        <div style={{ marginTop: 12 }}>
+          {exact ? (
+            <p style={{ color: "var(--color-success)", fontWeight: 700, margin: 0 }}>
+              ✅ 已經學過「{trimmed}」
+              <span
+                style={{
+                  display: "block",
+                  fontWeight: 400,
+                  color: "var(--color-text-muted)",
+                  fontSize: "0.85rem",
+                  marginTop: 4,
+                }}
+              >
+                {formatDate(exact.addedDateKey)} 新增，注音 {exact.zhuyin}
+                {weakChars.has(trimmed) ? "，目前標記為需要加強練習" : ""}
+              </span>
+            </p>
+          ) : (
+            <p style={{ color: "var(--color-danger)", fontWeight: 700, margin: 0 }}>
+              ❌ 還沒學過「{trimmed}」
+            </p>
+          )}
+          {partial.length > 0 && (
+            <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", marginTop: 8, marginBottom: 0 }}>
+              包含「{trimmed}」的詞：{partial.map((p) => p.hanzi).join("、")}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
