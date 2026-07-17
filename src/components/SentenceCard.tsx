@@ -10,6 +10,8 @@ interface Props {
   extraActions?: ReactNode;
 }
 
+const FULLWIDTH_PUNCTUATION = new Set(["，", "。", "！", "？", "、"]);
+
 export function SentenceCard({ sentence, extraActions }: Props) {
   const chars = zhuyinForSentence(sentence);
 
@@ -30,7 +32,20 @@ export function SentenceCard({ sentence, extraActions }: Props) {
             <div style={{ fontSize: "1rem", color: "var(--color-secondary)", fontWeight: 700 }}>
               {c.zhuyin}
             </div>
-            <div style={{ fontSize: "2.6rem", fontWeight: 700, lineHeight: 1.1 }}>{c.char}</div>
+            <div
+              style={{
+                fontSize: "2.6rem",
+                fontWeight: 700,
+                lineHeight: 1.1,
+                // Full-width CJK punctuation glyphs (，。！？、) sit near the
+                // top of their character box by font-design convention, so
+                // without this they visually "float" above the baseline
+                // that hanzi in the same row sit on.
+                transform: FULLWIDTH_PUNCTUATION.has(c.char) ? "translateY(0.62em)" : undefined,
+              }}
+            >
+              {c.char}
+            </div>
           </div>
         ))}
       </div>
