@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { zhuyinForSentence } from "../lib/zhuyin";
+import { zhuyinForSentence, type AnnotatedChar } from "../lib/zhuyin";
 import { speak } from "../lib/speech";
 
 interface Props {
@@ -12,40 +12,74 @@ interface Props {
 
 const FULLWIDTH_PUNCTUATION = new Set(["，", "。", "！", "？", "、"]);
 
+/** Max characters per reading column before wrapping to the next column
+ * (to the left), matching how a printed page of vertical Chinese text
+ * breaks into columns rather than one endless line. */
+const COLUMN_SIZE = 6;
+
+function chunkIntoColumns(chars: AnnotatedChar[]): AnnotatedChar[][] {
+  const columns: AnnotatedChar[][] = [];
+  for (let i = 0; i < chars.length; i += COLUMN_SIZE) {
+    columns.push(chars.slice(i, i + COLUMN_SIZE));
+  }
+  return columns;
+}
+
 export function SentenceCard({ sentence, extraActions }: Props) {
-  const chars = zhuyinForSentence(sentence);
+  const columns = chunkIntoColumns(zhuyinForSentence(sentence));
 
   return (
-    <div className="card" style={{ textAlign: "center", padding: "32px 20px" }}>
+    <div className="card" style={{ textAlign: "center", padding: "24px 16px" }}>
       <div
         style={{
           display: "flex",
-          flexWrap: "wrap",
+          flexDirection: "row-reverse",
+          alignItems: "flex-start",
           justifyContent: "center",
-          rowGap: 16,
-          columnGap: 4,
-          marginBottom: 20,
+          gap: 10,
+          overflowX: "auto",
+          maxWidth: "100%",
+          margin: "0 auto 20px",
+          padding: "4px 2px",
         }}
       >
-        {chars.map((c, i) => (
-          <div key={i} style={{ textAlign: "center" }}>
-            <div style={{ fontSize: "1rem", color: "var(--color-secondary)", fontWeight: 700 }}>
-              {c.zhuyin}
-            </div>
-            <div
-              style={{
-                fontSize: "2.6rem",
-                fontWeight: 700,
-                lineHeight: 1.1,
-                // Full-width CJK punctuation glyphs (，。！？、) sit near the
-                // top of their character box by font-design convention, so
-                // without this they visually "float" above the baseline
-                // that hanzi in the same row sit on.
-                transform: FULLWIDTH_PUNCTUATION.has(c.char) ? "translateY(0.62em)" : undefined,
-              }}
-            >
-              {c.char}
-            </div>
+        {columns.map((col, ci) => (
+          <div key={ci} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+            {col.map((c, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2 }}>
+                <span
+                  style={{
+                    fontSize: "2.2rem",
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    // Full-width CJK punctuation glyphs (，。！？、) sit near
+                    // the top of their character box by font-design
+                    // convention, so without this they visually "float"
+                    // above the baseline the surrounding hanzi sit on.
+                    transform: FULLWIDTH_PUNCTUATION.has(c.char) ? "translateY(0.5em)" : undefined,
+                  }}
+                >
+                  {c.char}
+                </span>
+                {c.zhuyin && (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    {Array.from(c.zhuyin).map((symbol, si) => (
+                      <span
+                        key={si}
+                        style={{
+                          fontSize: "0.68rem",
+                          color: "var(--color-secondary)",
+                          fontWeight: 700,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {symbol}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         ))}
       </div>
