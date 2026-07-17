@@ -21,6 +21,16 @@ const DIFFICULTY_LENGTH_RANGE: Record<Difficulty, [number, number]> = {
   hard: [9, 22],
 };
 
+// Longer (harder) sentences are far more likely to need a character outside
+// the child's allowed-character list, so a much larger fraction gets
+// rejected by the allowedSet filter below. Ask for a bigger raw batch on
+// harder difficulties so enough survive filtering to reach `count`.
+const GENERATION_BUFFER: Record<Difficulty, number> = {
+  easy: 3,
+  medium: 5,
+  hard: 12,
+};
+
 const SYSTEM_PROMPT =
   "你是一位幫五歲小朋友出中文練習句子的老師。只能使用使用者提供的「允許用字清單」裡的國字來造句，" +
   "絕對不能出現清單以外的任何國字，也不可以使用標點符號、注音、拼音或英文字母，只能是純中文字。" +
@@ -119,7 +129,7 @@ export default {
       `允許用字清單（只能用這些字，不可以用清單以外的任何國字）：\n${allowedListText}\n\n` +
       `目標字或詞（每一句都必須完整包含這個字或詞，盡量跟其他允許用字組成有意義的詞語或句子）：${targetText}\n\n` +
       `句子長度要求：${DIFFICULTY_GUIDANCE[difficulty]}\n\n` +
-      `請生成 ${count + 3} 個句子，輸出 JSON：{"sentences": ["句子1", "句子2", ...]}`;
+      `請生成 ${count + GENERATION_BUFFER[difficulty]} 個句子，輸出 JSON：{"sentences": ["句子1", "句子2", ...]}`;
 
     let openaiRes: Response;
     try {
