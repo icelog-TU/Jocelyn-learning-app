@@ -174,48 +174,61 @@ function CollectionGrid({ ownedCounts }: { ownedCounts: Map<string, number> }) {
   return (
     <div className="card">
       <p style={{ fontWeight: 700, margin: "0 0 12px" }}>🧸 我的收藏</p>
-      {CREATURE_SPECIES.map((species) => (
-        <div key={species.id} style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-          {CREATURE_VARIANTS.map((variant) => {
-            const count = ownedCounts.get(prizeKey(species.id, variant)) ?? 0;
-            const owned = count > 0;
-            return (
-              <div
-                key={variant}
-                style={{
-                  flex: 1,
-                  textAlign: "center",
-                  borderRadius: 14,
-                  padding: "10px 4px",
-                  background: owned ? species.color : "#f1ede6",
-                  position: "relative",
-                }}
-              >
-                {owned && count > 1 && (
-                  <span
+      {CREATURE_SPECIES.map((species) => {
+        const ownedForSpecies = CREATURE_VARIANTS.filter((v) =>
+          ownedCounts.has(prizeKey(species.id, v)),
+        ).length;
+        return (
+          <div key={species.id} style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <span style={{ fontSize: "1.3rem" }}>{species.emoji}</span>
+              <strong style={{ fontSize: "0.95rem" }}>{species.name}</strong>
+              <span style={{ color: "var(--color-text-muted)", fontSize: "0.8rem" }}>
+                {ownedForSpecies} / {CREATURE_VARIANTS.length}
+              </span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+              {CREATURE_VARIANTS.map((variant) => {
+                const count = ownedCounts.get(prizeKey(species.id, variant)) ?? 0;
+                const owned = count > 0;
+                return (
+                  <div
+                    key={variant}
                     style={{
-                      position: "absolute",
-                      top: 2,
-                      right: 6,
-                      fontSize: "0.7rem",
-                      fontWeight: 700,
-                      color: "var(--color-text-muted)",
+                      textAlign: "center",
+                      borderRadius: 10,
+                      padding: "6px 2px",
+                      background: owned ? species.color : "#f1ede6",
+                      position: "relative",
                     }}
                   >
-                    x{count}
-                  </span>
-                )}
-                <div style={{ fontSize: "1.8rem", opacity: owned ? 1 : 0.35 }}>
-                  {owned ? species.emoji : "❔"}
-                </div>
-                <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
-                  {owned ? `${species.name}${VARIANT_LABELS[variant]}` : VARIANT_LABELS[variant]}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ))}
+                    {owned && count > 1 && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: 1,
+                          right: 3,
+                          fontSize: "0.6rem",
+                          fontWeight: 700,
+                          color: "var(--color-text-muted)",
+                        }}
+                      >
+                        x{count}
+                      </span>
+                    )}
+                    <div style={{ fontSize: "1.3rem", opacity: owned ? 1 : 0.35 }}>
+                      {owned ? species.emoji : "❔"}
+                    </div>
+                    <div style={{ fontSize: "0.65rem", color: "var(--color-text-muted)" }}>
+                      {VARIANT_LABELS[variant]}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

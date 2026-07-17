@@ -51,7 +51,16 @@ export interface WeakCharDoc {
   addedAt: number;
 }
 
-export type CreatureVariant = "dad" | "mom" | "baby";
+export type CreatureVariant =
+  | "grandpa"
+  | "grandma"
+  | "dad"
+  | "mom"
+  | "olderBrother"
+  | "olderSister"
+  | "youngerBrother"
+  | "youngerSister"
+  | "baby";
 
 /** One gacha draw's result: a family-member variant of a creature species. */
 export interface CollectedPrizeDoc {

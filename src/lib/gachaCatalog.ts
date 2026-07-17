@@ -8,8 +8,8 @@ export interface CreatureSpecies {
 }
 
 /** Original creature species (not based on any existing IP) so the app can
- * safely ship on a public repo. Each species can be drawn as a dad/mom/baby
- * variant, giving a family-collecting mechanic similar to gacha games. */
+ * safely ship on a public repo. Each species can be drawn as any of the 9
+ * family-role variants below, giving a big family-collecting mechanic. */
 export const CREATURE_SPECIES: CreatureSpecies[] = [
   { id: "mouse", name: "電鼠", emoji: "🐭", color: "#fff4cf" },
   { id: "turtle", name: "水龜", emoji: "🐢", color: "#d9f2ef" },
@@ -17,19 +17,56 @@ export const CREATURE_SPECIES: CreatureSpecies[] = [
   { id: "rabbit", name: "草兔", emoji: "🐰", color: "#e3f5d8" },
   { id: "cat", name: "星貓", emoji: "🐱", color: "#ece0ff" },
   { id: "sheep", name: "雲羊", emoji: "🐑", color: "#e8f0ff" },
+  { id: "bird", name: "光鳥", emoji: "🐦", color: "#fde8f3" },
+  { id: "bear", name: "石熊", emoji: "🐻", color: "#f0e6d2" },
+  { id: "penguin", name: "冰企鵝", emoji: "🐧", color: "#dbf3ff" },
+  { id: "deer", name: "花鹿", emoji: "🦌", color: "#f7e0e6" },
+  { id: "owl", name: "夜梟", emoji: "🦉", color: "#e6e6f0" },
+  { id: "horse", name: "彩虹馬", emoji: "🐴", color: "#ffe9f5" },
+  { id: "fish", name: "泡泡魚", emoji: "🐠", color: "#d7f0ff" },
+  { id: "butterfly", name: "微風蝶", emoji: "🦋", color: "#f3e3ff" },
+  { id: "dragon", name: "岩石龍", emoji: "🐉", color: "#e0e8d9" },
+  { id: "lion", name: "陽光獅", emoji: "🦁", color: "#fff0d9" },
+  { id: "pig", name: "甜心豬", emoji: "🐷", color: "#ffe3ea" },
+  { id: "monkey", name: "叢林猴", emoji: "🐵", color: "#e5f7e0" },
+  { id: "dolphin", name: "浪花豚", emoji: "🐬", color: "#dff2f7" },
+  { id: "wolf", name: "雪狼", emoji: "🐺", color: "#eef0f5" },
 ];
 
-export const CREATURE_VARIANTS: CreatureVariant[] = ["dad", "mom", "baby"];
+/** Generational order: grandparents, parents, siblings (older to younger), baby. */
+export const CREATURE_VARIANTS: CreatureVariant[] = [
+  "grandpa",
+  "grandma",
+  "dad",
+  "mom",
+  "olderBrother",
+  "olderSister",
+  "youngerBrother",
+  "youngerSister",
+  "baby",
+];
 
 export const VARIANT_LABELS: Record<CreatureVariant, string> = {
+  grandpa: "爺爺",
+  grandma: "奶奶",
   dad: "爸爸",
   mom: "媽媽",
+  olderBrother: "哥哥",
+  olderSister: "姊姊",
+  youngerBrother: "弟弟",
+  youngerSister: "妹妹",
   baby: "寶寶",
 };
 
 export const VARIANT_BADGES: Record<CreatureVariant, string> = {
+  grandpa: "👓",
+  grandma: "🧣",
   dad: "🎩",
   mom: "🎀",
+  olderBrother: "🧢",
+  olderSister: "🌸",
+  youngerBrother: "🪀",
+  youngerSister: "🎈",
   baby: "🍼",
 };
 
