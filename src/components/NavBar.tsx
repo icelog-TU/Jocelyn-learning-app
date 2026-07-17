@@ -4,6 +4,7 @@ const NAV_ITEMS = [
   { to: "/", label: "首頁", icon: "🏠", end: true },
   { to: "/add", label: "新增", icon: "✏️", end: false },
   { to: "/sentences", label: "複習", icon: "🀄", end: false },
+  { to: "/gacha", label: "轉蛋", icon: "🎁", end: false },
   { to: "/history", label: "紀錄", icon: "📅", end: false },
 ];
 

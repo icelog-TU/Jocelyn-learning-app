@@ -17,8 +17,12 @@ import {
 } from "./localSentences";
 import { addWeakChar, removeWeakChar, subscribeWeakChars } from "./weakChars";
 import { addWeakCharLocal, removeWeakCharLocal, subscribeWeakCharsLocal } from "./localWeakChars";
+import { addPrize, subscribePrizes } from "./prizes";
+import { addPrizeLocal, subscribePrizesLocal } from "./localPrizes";
 import type {
   CharacterDoc,
+  CollectedPrizeDoc,
+  CreatureVariant,
   NewCharacterInput,
   NewSentenceEntry,
   SentenceDifficulty,
@@ -123,4 +127,25 @@ export function removeWeakCharEntry(familyCode: string, id: string): Promise<voi
   return isFirebaseConfigured
     ? removeWeakChar(familyCode, id)
     : removeWeakCharLocal(familyCode, id);
+}
+
+export function subscribeToPrizes(
+  familyCode: string,
+  onChange: (prizes: CollectedPrizeDoc[]) => void,
+  onError: (err: Error) => void,
+): () => void {
+  if (isFirebaseConfigured) {
+    return subscribePrizes(familyCode, onChange, onError);
+  }
+  return subscribePrizesLocal(familyCode, onChange);
+}
+
+export function savePrize(
+  familyCode: string,
+  speciesId: string,
+  variant: CreatureVariant,
+): Promise<void> {
+  return isFirebaseConfigured
+    ? addPrize(familyCode, speciesId, variant)
+    : addPrizeLocal(familyCode, speciesId, variant);
 }

@@ -50,3 +50,13 @@ export interface WeakCharDoc {
   hanzi: string;
   addedAt: number;
 }
+
+export type CreatureVariant = "dad" | "mom" | "baby";
+
+/** One gacha draw's result: a family-member variant of a creature species. */
+export interface CollectedPrizeDoc {
+  id: string;
+  speciesId: string;
+  variant: CreatureVariant;
+  obtainedAt: number;
+}

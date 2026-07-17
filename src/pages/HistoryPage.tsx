@@ -113,6 +113,7 @@ export function HistoryPage({ characters, sentences, weakChars, familyCode }: Pr
 
       {tab === "characters" ? (
         <>
+          <ExportCharactersSection characters={characters} />
           <CharacterLookup characters={characters} weakChars={weakCharSet} query={query} onQueryChange={setQuery} />
           <WeakCharsSection weakChars={weakChars} familyCode={familyCode} />
           {(!trimmedQuery || filteredCharacters.length > 0) && (
@@ -121,6 +122,73 @@ export function HistoryPage({ characters, sentences, weakChars, familyCode }: Pr
         </>
       ) : (
         <SentenceHistory sentences={sentences} />
+      )}
+    </div>
+  );
+}
+
+function exportedHanziString(characters: CharacterDoc[]): string {
+  const sorted = [...characters].sort((a, b) => a.addedAt - b.addedAt);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of sorted) {
+    for (const ch of c.hanzi) {
+      if (/\p{Script=Han}/u.test(ch) && !seen.has(ch)) {
+        seen.add(ch);
+        out.push(ch);
+      }
+    }
+  }
+  return out.join("");
+}
+
+function ExportCharactersSection({ characters }: { characters: CharacterDoc[] }) {
+  const [exported, setExported] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  if (characters.length === 0) return null;
+
+  async function handleExport() {
+    const text = exportedHanziString(characters);
+    setExported(text);
+    setCopied(false);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      // Clipboard API unavailable or denied — the textarea below still lets
+      // the user select-all and copy manually.
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <p style={{ fontWeight: 700, margin: 0 }}>📤 匯出已學漢字</p>
+        <button className="btn btn-outline" onClick={handleExport}>
+          匯出
+        </button>
+      </div>
+      {exported !== null && (
+        <>
+          <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", margin: "8px 0 6px" }}>
+            共 {Array.from(exported).length} 字，{copied ? "已複製到剪貼簿" : "自動複製失敗，可以在下面手動全選複製"}
+          </p>
+          <textarea
+            readOnly
+            value={exported}
+            rows={4}
+            onFocus={(e) => e.currentTarget.select()}
+            style={{
+              width: "100%",
+              fontSize: "1rem",
+              padding: 10,
+              borderRadius: 12,
+              border: "2px solid #eee0d0",
+              boxSizing: "border-box",
+            }}
+          />
+        </>
       )}
     </div>
   );

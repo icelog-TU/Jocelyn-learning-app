@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import type { CharacterDoc, SentenceDoc } from "../types";
 import { dateKey } from "../lib/characters";
 import { countDueForReview } from "../lib/review";
-import { starsForDifficulty } from "../lib/sentencePractice";
+import { computeTotalStars } from "../lib/sentencePractice";
 
 interface Props {
   characters: CharacterDoc[];
@@ -19,12 +19,7 @@ export function HomePage({
   loading,
   onChangeFamilyCode,
 }: Props) {
-  const sentenceStars = sentences.reduce(
-    (sum, s) => sum + s.stats.correctCount * starsForDifficulty(s.difficulty),
-    0,
-  );
-  const totalStars =
-    characters.reduce((sum, c) => sum + c.stats.correctCount, 0) + sentenceStars;
+  const totalStars = computeTotalStars(characters, sentences);
   const todayKey = dateKey();
   const addedToday = characters.filter((c) => c.addedDateKey === todayKey).length;
   const dueSentenceCount = countDueForReview(sentences);
@@ -56,6 +51,10 @@ export function HomePage({
           </Link>
         </div>
       </div>
+
+      <Link to="/gacha" className="btn btn-outline btn-block" style={{ marginBottom: 16 }}>
+        🎁 拿星星去轉蛋！
+      </Link>
 
       <p style={{ textAlign: "center", color: "var(--color-text-muted)", fontSize: "0.85rem" }}>
         家庭代碼：<strong>{familyCode}</strong>

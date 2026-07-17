@@ -1,4 +1,4 @@
-import type { SentenceDifficulty } from "../types";
+import type { CharacterDoc, SentenceDifficulty, SentenceDoc } from "../types";
 
 export const isSentencePracticeConfigured = Boolean(import.meta.env.VITE_SENTENCE_API_URL);
 
@@ -19,6 +19,15 @@ const STARS_BY_DIFFICULTY: Record<SentenceDifficulty, number> = {
  * sentences saved before difficulty existed. */
 export function starsForDifficulty(difficulty: SentenceDifficulty | undefined): number {
   return STARS_BY_DIFFICULTY[difficulty ?? "medium"];
+}
+
+/** Lifetime star total across all correct character and sentence reviews. */
+export function computeTotalStars(characters: CharacterDoc[], sentences: SentenceDoc[]): number {
+  const sentenceStars = sentences.reduce(
+    (sum, s) => sum + s.stats.correctCount * starsForDifficulty(s.difficulty),
+    0,
+  );
+  return characters.reduce((sum, c) => sum + c.stats.correctCount, 0) + sentenceStars;
 }
 
 export async function generateSentences(
