@@ -9,6 +9,10 @@ function pinyinSyllableToZhuyin(syllable: string): string {
   }
 }
 
+function isHanChar(ch: string): boolean {
+  return /\p{Script=Han}/u.test(ch);
+}
+
 /** Best-guess zhuyin for a hanzi string, joined with spaces per character. */
 export function guessZhuyin(hanzi: string): string {
   const syllables = pinyin(hanzi, { toneType: "symbol", type: "array" });
@@ -31,7 +35,10 @@ export function zhuyinForSentence(sentence: string): AnnotatedChar[] {
   const syllables = pinyin(sentence, { toneType: "symbol", type: "array" });
   return chars.map((char, i) => ({
     char,
-    zhuyin: pinyinSyllableToZhuyin(syllables[i] ?? char),
+    // Punctuation has no reading, so leave the zhuyin line blank instead of
+    // echoing the punctuation mark itself (pinyin-pro passes it through
+    // unchanged, which would otherwise show it duplicated on both lines).
+    zhuyin: isHanChar(char) ? pinyinSyllableToZhuyin(syllables[i] ?? char) : "",
   }));
 }
 

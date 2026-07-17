@@ -31,20 +31,31 @@ const GENERATION_BUFFER: Record<Difficulty, number> = {
   hard: 12,
 };
 
+const ALLOWED_PUNCTUATION = new Set(["，", "。", "！", "？", "、"]);
+
 const SYSTEM_PROMPT =
-  "你是一位幫五歲小朋友出中文練習句子的老師。只能使用使用者提供的「允許用字清單」裡的國字來造句，" +
-  "絕對不能出現清單以外的任何國字，也不可以使用標點符號、注音、拼音或英文字母，只能是純中文字。" +
+  "你是一位幫五歲小朋友出中文練習句子的老師。使用者會提供一份「允許用字清單」（小朋友已經學會的國字）" +
+  "和一個「目標字或詞」。嚴格遵守漢字限制：除了目標字或詞以外，句子裡的每一個國字都必須來自允許用字" +
+  "清單，絕對不能出現清單以外的任何國字，也不可以使用注音、拼音或英文字母。標點符號不受用字清單限制，" +
+  "可以正常使用「，。！？、」這幾種標點來讓句子更自然、更有語氣，但不要使用這幾種以外的其他符號。" +
   "每一句都必須完整包含使用者指定的「目標字或詞」（原字原順序，不能拆開）。請盡量把目標字或詞跟" +
-  "「允許用字清單」裡小朋友已經學過的其他字組成真正有意義的詞語或句子（例如目標是「學」，可以組成" +
-  "「學校」「學生」「學會」「好學」；如果目標本身就是一個詞，例如「毛毛蟲」，就直接把這個詞自然地" +
-  "用在句子裡），讓句子讀起來像繪本裡自然的句子，不要把目標孤立地硬塞進句子。句子要生活化、口語、" +
-  "符合五歲小孩的理解程度。請務必遵守使用者指定的句子長度要求。使用繁體中文（台灣用語）。" +
+  "允許用字清單裡小朋友已經學過的其他字組成真正有意義的詞語或句子。" +
+  "不要為了遵守字庫限制而只生成極度簡單的句子：像「我愛媽媽。」「我愛小狗。」這種單純" +
+  "「主詞＋動詞＋受詞」的句型應該盡量避免。請在允許用字清單許可的範圍內，優先創作自然、完整、" +
+  "有情境、有內容的句子：可以善用人物、動作、時間、地點、狀態、前後因果等描述方式增加句子的豐富度，" +
+  "也可以適度使用較長的句子或複句（例如「也」「和」「可是」「一起」「在」「的」「有」「沒有」" +
+  "「來」「去」這類常見字如果在允許用字清單裡，就可以拿來組合出更完整的語意）。這一批句子彼此之間" +
+  "應盡量使用不同的句型與不同的情境，不要只是替換掉同一個句型裡的人物或名詞（例如不要連續產生" +
+  "「我愛媽媽」「我愛爸爸」「我愛妹妹」這種只換名詞的句子）。句子要讀起來像繪本裡自然的句子，生活化、" +
+  "口語、符合五歲小孩的理解程度。請務必遵守使用者指定的句子長度要求（長度只計算國字數，不含標點符號）。" +
+  "使用繁體中文（台灣用語）。" +
   "最重要的一點：每一句都必須是文法完全正確、通順自然、母語者會真的這樣說的中文句子，" +
   "絕對不能為了塞進允許用字或湊長度，硬把幾個字堆疊成不通順的句子。例如「晚上的狗在叫聲」文法" +
   "是錯的（「在叫」是動詞用法，「叫聲」是名詞用法，兩個不能這樣接在一起），正確應該寫成" +
-  "「晚上的狗在叫」或「我聽到狗的叫聲」這種通順的說法。生成每一句之後，請在心裡檢查一次：" +
-  "這句話文法對嗎？一個中文母語者會這樣說嗎？如果不通順，就換一個字詞組合或句型，直到通順為止，" +
-  "寧可句子簡單一點，也不要文法有問題。" +
+  "「晚上的狗在叫」或「我聽到狗的叫聲」這種通順的說法。生成每一句之後，請在心裡逐字檢查一次：" +
+  "這句話裡的每一個國字是不是都在目標字詞或允許用字清單裡？文法對嗎？一個中文母語者會這樣說嗎？" +
+  "如果有任何一點不符合，就換一個字詞組合或句型重新造句，直到完全符合為止，寧可句子簡單一點，" +
+  "也不要出現未學過的字或文法問題。" +
   '請直接輸出 JSON，格式為 {"sentences": ["句子1", "句子2"]}，不要加任何其他文字或說明。';
 
 function corsHeaders(allowedOrigin: string): Record<string, string> {
@@ -83,6 +94,71 @@ function isHanChar(ch: string): boolean {
 
 function parseDifficulty(value: unknown): Difficulty {
   return value === "easy" || value === "medium" || value === "hard" ? value : "medium";
+}
+
+// Every Han character must come from the allowed set; punctuation is exempt
+// from the allowed set but must still be one of the whitelisted marks (this
+// also still rejects pinyin/zhuyin/English letters, matching the old rule).
+function sentenceViolations(sentence: string, allowedSet: Set<string>): string[] {
+  const violations: string[] = [];
+  for (const ch of sentence) {
+    if (isHanChar(ch)) {
+      if (!allowedSet.has(ch)) violations.push(ch);
+    } else if (!ALLOWED_PUNCTUATION.has(ch)) {
+      violations.push(ch);
+    }
+  }
+  return violations;
+}
+
+// Length limits are calibrated against Han-character count, so punctuation
+// (now allowed) shouldn't count toward them.
+function hanLength(sentence: string): number {
+  return [...sentence].filter(isHanChar).length;
+}
+
+const MAX_ATTEMPTS = 3;
+
+type OpenAIResult = { ok: true; sentences: unknown[] } | { ok: false; status: number; error: string };
+
+async function callOpenAI(env: Env, userPrompt: string): Promise<OpenAIResult> {
+  let openaiRes: Response;
+  try {
+    openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.6,
+      }),
+    });
+  } catch {
+    return { ok: false, status: 502, error: "AI 服務連線失敗" };
+  }
+
+  if (!openaiRes.ok) {
+    return { ok: false, status: 502, error: "AI 服務暫時無法使用" };
+  }
+
+  const data = (await openaiRes.json()) as {
+    choices?: { message?: { content?: string } }[];
+  };
+  const content = data.choices?.[0]?.message?.content ?? "";
+
+  try {
+    const parsed = JSON.parse(content);
+    return { ok: true, sentences: Array.isArray(parsed.sentences) ? parsed.sentences : [] };
+  } catch {
+    return { ok: true, sentences: [] };
+  }
 }
 
 export default {
@@ -155,65 +231,68 @@ export default {
           `自然表達方式，避免出現跟這些例句風格差很多的生硬組合）：\n${referenceSentences.join("\n")}\n\n`
         : "";
 
-    const userPrompt =
-      `允許用字清單（只能用這些字，不可以用清單以外的任何國字）：\n${allowedListText}\n\n` +
-      `目標字或詞（每一句都必須完整包含這個字或詞，盡量跟其他允許用字組成有意義的詞語或句子）：${targetText}\n\n` +
-      focusHint +
-      referenceHint +
-      `句子長度要求：${DIFFICULTY_GUIDANCE[difficulty]}\n\n` +
-      `請生成 ${count + GENERATION_BUFFER[difficulty]} 個句子，輸出 JSON：{"sentences": ["句子1", "句子2", ...]}`;
-
-    let openaiRes: Response;
-    try {
-      openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: userPrompt },
-          ],
-          response_format: { type: "json_object" },
-          temperature: 0.6,
-        }),
-      });
-    } catch {
-      return jsonResponse({ error: "AI 服務連線失敗" }, 502, headers);
-    }
-
-    if (!openaiRes.ok) {
-      return jsonResponse({ error: "AI 服務暫時無法使用" }, 502, headers);
-    }
-
-    const data = (await openaiRes.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const content = data.choices?.[0]?.message?.content ?? "";
-
-    let rawSentences: unknown[] = [];
-    try {
-      const parsed = JSON.parse(content);
-      rawSentences = Array.isArray(parsed.sentences) ? parsed.sentences : [];
-    } catch {
-      rawSentences = [];
-    }
-
     const [minLen, maxLen] = DIFFICULTY_LENGTH_RANGE[difficulty];
 
-    const validSentences = rawSentences
-      .filter((s): s is string => typeof s === "string" && s.length > 0)
-      .filter((s) => s.includes(targetText))
-      .filter((s) => [...s].every((ch) => allowedSet.has(ch)))
-      .filter((s) => {
-        const len = [...s].length;
-        return len >= minLen && len <= maxLen;
-      })
-      .slice(0, count);
+    // Deterministic validation + retry loop: the AI's own self-check in the
+    // prompt is a best-effort instruction, not a guarantee, so every returned
+    // sentence is re-checked character-by-character here. Sentences with a
+    // disallowed Han character are never shown to the user; instead they're
+    // fed back to the AI (with the specific offending characters) so it can
+    // retry, up to MAX_ATTEMPTS total calls.
+    const collected: string[] = [];
+    let retryFeedback = "";
 
-    return jsonResponse({ sentences: validSentences }, 200, headers);
+    for (let attempt = 0; attempt < MAX_ATTEMPTS && collected.length < count; attempt++) {
+      const remaining = count - collected.length;
+      const requestCount = remaining + GENERATION_BUFFER[difficulty];
+
+      const userPrompt =
+        `允許用字清單（只能用這些字，不可以用清單以外的任何國字；標點符號不受此清單限制，` +
+        `可另外使用「，。！？、」）：\n${allowedListText}\n\n` +
+        `目標字或詞（每一句都必須完整包含這個字或詞，盡量跟其他允許用字組成有意義的詞語或句子）：${targetText}\n\n` +
+        focusHint +
+        referenceHint +
+        `句子長度要求：${DIFFICULTY_GUIDANCE[difficulty]}（只計算國字數，標點符號不算在內）\n\n` +
+        retryFeedback +
+        `請生成 ${requestCount} 個句子，輸出 JSON：{"sentences": ["句子1", "句子2", ...]}`;
+
+      const result = await callOpenAI(env, userPrompt);
+      if (!result.ok) {
+        if (collected.length > 0) break;
+        return jsonResponse({ error: result.error }, result.status, headers);
+      }
+
+      const invalidSamples: { sentence: string; violations: string[] }[] = [];
+
+      for (const raw of result.sentences) {
+        if (collected.length >= count) break;
+        if (typeof raw !== "string" || raw.length === 0) continue;
+        if (collected.includes(raw)) continue;
+        if (!raw.includes(targetText)) continue;
+
+        const violations = sentenceViolations(raw, allowedSet);
+        const len = hanLength(raw);
+        const lengthOk = len >= minLen && len <= maxLen;
+
+        if (violations.length === 0 && lengthOk) {
+          collected.push(raw);
+        } else if (violations.length > 0 && invalidSamples.length < 5) {
+          invalidSamples.push({ sentence: raw, violations: [...new Set(violations)] });
+        }
+      }
+
+      if (collected.length >= count || invalidSamples.length === 0) {
+        retryFeedback = "";
+      } else {
+        const examples = invalidSamples
+          .map((s) => `「${s.sentence}」（不允許的字：${s.violations.join("、")}）`)
+          .join("\n");
+        retryFeedback =
+          `上一輪你產生的句子中，以下句子使用了不在允許用字清單裡的國字，請不要再犯同樣的錯誤，` +
+          `重新造句時務必逐字確認每一個國字都在允許用字清單或目標字詞裡，只有標點符號可以例外：\n${examples}\n\n`;
+      }
+    }
+
+    return jsonResponse({ sentences: collected.slice(0, count) }, 200, headers);
   },
 };
