@@ -100,10 +100,10 @@ export function SentenceCard({ sentence, lineBreaks, extraActions }: Props) {
                             aria-hidden
                             style={{
                               position: "absolute",
-                              top: -8,
+                              top: -14,
                               left: "50%",
                               transform: "translateX(-50%)",
-                              fontSize: "0.5rem",
+                              fontSize: "1rem",
                               color: "var(--color-secondary)",
                               fontWeight: 700,
                               lineHeight: 1,
@@ -131,9 +131,9 @@ export function SentenceCard({ sentence, lineBreaks, extraActions }: Props) {
                             style={{
                               position: "absolute",
                               top: "50%",
-                              right: -7,
+                              right: -12,
                               transform: "translateY(-50%)",
-                              fontSize: "0.5rem",
+                              fontSize: "1rem",
                               color: "var(--color-secondary)",
                               fontWeight: 700,
                               lineHeight: 1,
