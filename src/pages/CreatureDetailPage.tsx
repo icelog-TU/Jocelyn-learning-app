@@ -2,6 +2,8 @@ import { Link, useParams } from "react-router-dom";
 import type { AffectionDoc, CharacterDoc, CollectedPrizeDoc, CreatureVariant, SentenceDoc } from "../types";
 import { computeTotalStars } from "../lib/sentencePractice";
 import { giveGiftToCreature } from "../lib/store";
+import { speak } from "../lib/speech";
+import { HeartMeter } from "../components/HeartMeter";
 import {
   AFFECTION_MILESTONES,
   CREATURE_VARIANTS,
@@ -84,7 +86,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
       )}
 
       <div className="card" style={{ marginBottom: 16, textAlign: "center" }}>
-        <div style={{ fontSize: "1.8rem", fontWeight: 800 }}>❤️ {hearts}</div>
+        <HeartMeter hearts={hearts} />
         <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
           {nextMilestone ? `再 ${nextMilestone - hearts} 點好感度解鎖新互動` : "已經是最要好的朋友了！"}
         </div>
@@ -115,17 +117,29 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
         {AFFECTION_STAGE_TITLES.map((title, stage) => {
           const threshold = stage === 0 ? 0 : AFFECTION_MILESTONES[stage - 1];
           const unlocked = hearts >= threshold;
+          const text = unlocked ? affectionStageText(stage, speciesId, displayName, typedVariant) : "";
           return (
             <div key={stage} style={{ marginBottom: 12, opacity: unlocked ? 1 : 0.5 }}>
               <p style={{ fontWeight: 700, margin: "0 0 4px", fontSize: "0.9rem" }}>
-                {unlocked ? "🔓" : "🔒"} {title}
-                {stage > 0 && `（❤️${threshold}）`}
+                {unlocked ? `🔓 ${title}` : `🔒 神秘互動${stage > 0 ? `（❤️${threshold}）` : ""}`}
               </p>
-              <p style={{ margin: 0, fontSize: "0.95rem" }}>
-                {unlocked
-                  ? affectionStageText(stage, speciesId, displayName, typedVariant)
-                  : "多送一些禮物就可以解鎖囉"}
-              </p>
+              {unlocked ? (
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                  <button
+                    className="btn btn-outline"
+                    style={{ fontSize: "0.8rem", padding: "6px 10px", flexShrink: 0 }}
+                    onClick={() => speak(text)}
+                    aria-label="播放這段互動"
+                  >
+                    🔊 播放
+                  </button>
+                  <p style={{ margin: 0, fontSize: "0.95rem", flex: 1 }}>{text}</p>
+                </div>
+              ) : (
+                <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
+                  多送一些禮物就可以解鎖囉，還不知道會發生什麼事喔！
+                </p>
+              )}
             </div>
           );
         })}

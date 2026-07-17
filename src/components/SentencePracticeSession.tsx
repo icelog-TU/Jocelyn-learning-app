@@ -4,6 +4,7 @@ import type { SentenceDoc } from "../types";
 import { DIFFICULTY_LABELS, starsForDifficulty } from "../lib/sentencePractice";
 import { editSentenceText, saveSentenceReviewResult } from "../lib/store";
 import { playStarSound } from "../lib/sound";
+import { speak } from "../lib/speech";
 import { SentenceCard } from "./SentenceCard";
 import { StarBurst } from "./StarBurst";
 import { StarTray } from "./StarTray";
@@ -28,14 +29,8 @@ function minReadWaitMs(text: string): number {
 }
 
 function speakPraise() {
-  if (!("speechSynthesis" in window)) return;
   const phrase = PRAISE_PHRASES[Math.floor(Math.random() * PRAISE_PHRASES.length)];
-  const utterance = new SpeechSynthesisUtterance(phrase);
-  utterance.lang = "zh-TW";
-  utterance.rate = 1;
-  utterance.pitch = 1.3;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
+  speak(phrase, { rate: 1, pitch: 1.3 });
 }
 
 interface Props {

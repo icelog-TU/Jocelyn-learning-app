@@ -1,16 +1,8 @@
 import { zhuyinForSentence } from "../lib/zhuyin";
+import { speak } from "../lib/speech";
 
 interface Props {
   sentence: string;
-}
-
-function speak(text: string) {
-  if (!("speechSynthesis" in window)) return;
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "zh-TW";
-  utterance.rate = 0.8;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
 }
 
 export function SentenceCard({ sentence }: Props) {
@@ -37,7 +29,7 @@ export function SentenceCard({ sentence }: Props) {
           </div>
         ))}
       </div>
-      <button className="btn btn-outline" onClick={() => speak(sentence)} aria-label="播放整句發音">
+      <button className="btn btn-outline" onClick={() => speak(sentence, { rate: 0.8 })} aria-label="播放整句發音">
         🔊 聽整句
       </button>
     </div>
