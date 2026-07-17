@@ -180,14 +180,25 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
     }, 500);
   }
 
-  function handlePat() {
-    if (currentStageIndex(hearts) < 2) return;
+  // Tapping the portrait always introduces the creature by name — helpful
+  // for a child who can't read the page title above it — and, once "一起
+  // 玩" is unlocked, also plays a pat reaction. Both are said as a single
+  // utterance (voiceProvider cancels any speech already in progress when a
+  // new one starts, so two separate speakAsRole calls back to back would
+  // just cut each other off).
+  function handlePortraitTap() {
+    if (!species) return;
+    const intro = `我是${displayName}。`;
+    if (currentStageIndex(hearts) < 2) {
+      speakAsRole(intro, typedVariant);
+      return;
+    }
     playPatSound();
     setReactKey(Date.now());
     const reaction = randomPatReaction(typedVariant);
     setPatText(reaction);
     setPatKey(Date.now());
-    speakAsRole(reaction, typedVariant);
+    speakAsRole(`${intro}${reaction}`, typedVariant);
   }
 
   function handleGreet() {
@@ -355,10 +366,10 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
 
       <div className="card" style={{ marginBottom: 16, textAlign: "center" }}>
         <div
-          className={`creature-portrait${stageIdx >= 2 ? " tappable" : ""}`}
-          onClick={stageIdx >= 2 ? handlePat : undefined}
-          role={stageIdx >= 2 ? "button" : undefined}
-          aria-label={stageIdx >= 2 ? "摸摸頭" : undefined}
+          className="creature-portrait tappable"
+          onClick={handlePortraitTap}
+          role="button"
+          aria-label={`聽${displayName}自我介紹`}
         >
           <div
             key={reactKey}

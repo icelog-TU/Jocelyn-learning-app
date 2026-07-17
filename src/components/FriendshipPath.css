@@ -12,6 +12,15 @@
   align-items: center;
   width: 62px;
   flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+}
+
+.friendship-node-wrap:active .friendship-node {
+  transform: scale(0.92);
 }
 
 .friendship-node {

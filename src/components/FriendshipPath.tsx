@@ -32,12 +32,16 @@ export function FriendshipPath({ hearts, variant }: Props) {
               {i > 0 && (
                 <div className={`friendship-line${hearts >= stage.threshold ? " filled" : ""}`} />
               )}
-              <div className="friendship-node-wrap">
+              <button
+                className="friendship-node-wrap"
+                onClick={() => speakAsRole(stage.title, variant)}
+                aria-label={`播放「${stage.title}」`}
+              >
                 <div className={`friendship-node${unlocked ? " unlocked" : ""}${isCurrent ? " current" : ""}`}>
                   {unlocked ? stage.icon : "🔒"}
                 </div>
                 <div className="friendship-node-label">{stage.title}</div>
-              </div>
+              </button>
             </Fragment>
           );
         })}
