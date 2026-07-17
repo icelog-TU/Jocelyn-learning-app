@@ -45,7 +45,7 @@ export function SentenceManagePage({ sentences, familyCode }: Props) {
       </p>
 
       {sentences.length === 0 && (
-        <div className="empty-state card">還沒有任何句子，去「造句」頁面讓 AI 生成第一批吧！</div>
+        <div className="empty-state card">還沒有任何句子，去「新增」或「複習」頁面讓 AI 生成第一批吧！</div>
       )}
 
       {sentences.map((s) => (

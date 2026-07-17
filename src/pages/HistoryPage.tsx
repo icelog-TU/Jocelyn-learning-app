@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { CharacterDoc, SentenceDoc, WeakCharDoc } from "../types";
 import { dateKey } from "../lib/characters";
 import { DIFFICULTY_LABELS } from "../lib/sentencePractice";
@@ -367,16 +367,20 @@ function SentenceHistory({ sentences }: { sentences: SentenceDoc[] }) {
   const navigate = useNavigate();
   const groups = groupSentencesByDate(sentences);
 
-  if (groups.length === 0) {
-    return <div className="empty-state card">還沒有句子紀錄，去「新增」加一個字讓 AI 生成第一批吧！</div>;
-  }
-
   function practiceBatch(batch: SentenceBatch) {
     navigate("/sentences/batch", { state: { ids: batch.sentences.map((s) => s.id) } });
   }
 
   return (
     <>
+      <Link to="/sentences/manage" className="btn btn-primary btn-block" style={{ marginBottom: 16 }}>
+        📋 管理句子庫（修改／刪除）
+      </Link>
+
+      {groups.length === 0 && (
+        <div className="empty-state card">還沒有句子紀錄，去「新增」加一個字讓 AI 生成第一批吧！</div>
+      )}
+
       {groups.map((group) => {
         const totalSentences = group.batches.reduce((sum, b) => sum + b.sentences.length, 0);
         return (
