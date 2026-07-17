@@ -2,7 +2,17 @@ import { useEffect, useRef, useState } from "react";
 
 type RecordState = "idle" | "recording" | "recorded" | "unsupported" | "denied";
 
-export function RecordButton() {
+interface Props {
+  /** Fired once each time a recording finishes. */
+  onRecorded?: () => void;
+  /** Fired whenever it becomes clear recording isn't actually usable here
+   * (unsupported browser, or the mic permission was denied), so callers
+   * that gate on "must record first" can fall back gracefully instead of
+   * permanently blocking a family with no working microphone. */
+  onUnavailable?: () => void;
+}
+
+export function RecordButton({ onRecorded, onUnavailable }: Props) {
   const [state, setState] = useState<RecordState>(
     typeof window !== "undefined" && (window.MediaRecorder === undefined || !navigator.mediaDevices)
       ? "unsupported"
@@ -21,6 +31,11 @@ export function RecordButton() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (state === "unsupported" || state === "denied") onUnavailable?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -35,6 +50,7 @@ export function RecordButton() {
         setAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach((t) => t.stop());
         setState("recorded");
+        onRecorded?.();
       };
       mediaRecorderRef.current = recorder;
       recorder.start();

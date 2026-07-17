@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SentenceDoc } from "../types";
 import { DIFFICULTY_LABELS, starsForDifficulty } from "../lib/sentencePractice";
 import { editSentenceText, saveSentenceReviewResult } from "../lib/store";
@@ -17,6 +17,15 @@ const PRAISE_PHRASES = [
   "超級棒的！",
   "念得好流利！",
 ];
+
+/** Minimum time to keep "我念對了" disabled after a sentence appears, so
+ * tapping it the instant it renders (without reading anything) can't earn a
+ * star. Scales with sentence length; capped so long sentences don't force
+ * an annoyingly long wait. */
+function minReadWaitMs(text: string): number {
+  const len = Array.from(text).length;
+  return Math.min(6000, Math.max(1200, len * 400));
+}
 
 function speakPraise() {
   if (!("speechSynthesis" in window)) return;
@@ -64,8 +73,21 @@ export function SentencePracticeSession({
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [minWaitDone, setMinWaitDone] = useState(false);
+  const [hasRecorded, setHasRecorded] = useState(false);
+  const [micRequired, setMicRequired] = useState(true);
 
   const isComplete = index >= localSession.length;
+  const current = localSession[index];
+
+  useEffect(() => {
+    if (isComplete) return;
+    setMinWaitDone(false);
+    setHasRecorded(false);
+    const timer = window.setTimeout(() => setMinWaitDone(true), minReadWaitMs(current.text));
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.id]);
 
   if (isComplete) {
     return (
@@ -79,8 +101,6 @@ export function SentencePracticeSession({
       </div>
     );
   }
-
-  const current = localSession[index];
 
   function startEdit() {
     setEditText(current.text);
@@ -243,18 +263,32 @@ export function SentencePracticeSession({
       {!editing && (
         <>
           <div style={{ textAlign: "center", margin: "16px 0" }}>
-            <RecordButton key={current.id} />
+            <RecordButton
+              key={current.id}
+              onRecorded={() => setHasRecorded(true)}
+              onUnavailable={() => setMicRequired(false)}
+            />
           </div>
 
           <p style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "16px 0" }}>
             請她把整句話念出來，念對了嗎？
           </p>
 
+          {(!minWaitDone || (micRequired && !hasRecorded)) && (
+            <p style={{ textAlign: "center", color: "var(--color-secondary)", fontSize: "0.85rem", margin: "0 0 12px" }}>
+              {!minWaitDone ? "再唸一下下…" : "請先按上面「🎤 錄音念念看」念一次，才能按我念對了喔"}
+            </p>
+          )}
+
           <div style={{ display: "flex", gap: 10 }}>
             <button className="btn btn-outline btn-block" disabled={busy} onClick={handleSkip}>
               先跳過
             </button>
-            <button className="btn btn-primary btn-block" disabled={busy} onClick={handleCorrect}>
+            <button
+              className="btn btn-primary btn-block"
+              disabled={busy || !minWaitDone || (micRequired && !hasRecorded)}
+              onClick={handleCorrect}
+            >
               🎉 我念對了！
             </button>
           </div>
