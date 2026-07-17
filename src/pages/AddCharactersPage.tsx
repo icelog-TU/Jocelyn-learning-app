@@ -40,6 +40,7 @@ export function AddCharactersPage({
   const [pending, setPending] = useState<Pending | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedWord, setSavedWord] = useState<string | null>(null);
+  const [alreadyKnown, setAlreadyKnown] = useState(false);
   const [difficulty, setDifficulty] = useState<SentenceDifficulty>("medium");
   const [genPhase, setGenPhase] = useState<GenPhase>("idle");
   const [genError, setGenError] = useState<string | null>(null);
@@ -51,6 +52,20 @@ export function AddCharactersPage({
     const trimmed = rawInput.trim();
     const chars = Array.from(trimmed);
     if (chars.length === 0 || !chars.some((c) => /\p{Script=Han}/u.test(c))) return;
+
+    // Already learned this exact hanzi/word — don't log a duplicate entry,
+    // just jump straight to generating more practice sentences for it.
+    if (characters.some((c) => c.hanzi === trimmed)) {
+      setPending(null);
+      setSavedWord(trimmed);
+      setAlreadyKnown(true);
+      setDifficulty("medium");
+      setGenPhase("idle");
+      setGenError(null);
+      setPracticeSession(null);
+      setRawInput("");
+      return;
+    }
 
     const candidates = chars.length === 1 ? zhuyinCandidates(trimmed) : [guessZhuyin(trimmed)];
     setPending({ hanzi: trimmed, zhuyin: candidates[0], candidates });
@@ -67,6 +82,7 @@ export function AddCharactersPage({
     try {
       await saveCharacterBatch(familyCode, [{ hanzi: pending.hanzi, zhuyin: pending.zhuyin }]);
       setSavedWord(pending.hanzi);
+      setAlreadyKnown(false);
       setPending(null);
       setDifficulty("medium");
       setGenPhase("idle");
@@ -79,6 +95,7 @@ export function AddCharactersPage({
 
   function handleStartOver() {
     setSavedWord(null);
+    setAlreadyKnown(false);
     setPracticeSession(null);
     setGenPhase("idle");
     setGenError(null);
@@ -233,7 +250,9 @@ export function AddCharactersPage({
 
       {savedWord && (
         <div className="card" style={{ marginBottom: 16 }}>
-          <p style={{ margin: "0 0 12px", fontWeight: 700 }}>✅ 已新增「{savedWord}」</p>
+          <p style={{ margin: "0 0 12px", fontWeight: 700 }}>
+            {alreadyKnown ? `📚 「${savedWord}」已經學過囉，一起來造句練習吧！` : `✅ 已新增「${savedWord}」`}
+          </p>
 
           {!isSentencePracticeConfigured ? (
             <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem" }}>

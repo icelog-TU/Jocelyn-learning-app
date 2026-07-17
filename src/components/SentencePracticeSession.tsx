@@ -6,6 +6,7 @@ import { saveSentenceReviewResult } from "../lib/store";
 import { playStarSound } from "../lib/sound";
 import { SentenceCard } from "./SentenceCard";
 import { StarBurst } from "./StarBurst";
+import { StarTray } from "./StarTray";
 import { RecordButton } from "./RecordButton";
 
 const PRAISE_PHRASES = [
@@ -55,7 +56,9 @@ export function SentencePracticeSession({
 }: Props) {
   const [index, setIndex] = useState(0);
   const [starsEarned, setStarsEarned] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
   const [burstKey, setBurstKey] = useState(0);
+  const [pillPulseKey, setPillPulseKey] = useState(0);
   const [busy, setBusy] = useState(false);
 
   const isComplete = index >= session.length;
@@ -64,6 +67,7 @@ export function SentencePracticeSession({
     return (
       <div className="card" style={{ textAlign: "center" }}>
         <div style={{ fontSize: "3rem" }}>🎉</div>
+        <StarTray total={session.length} filled={correctCount} />
         <p style={{ fontSize: "1.1rem" }}>
           這次念了 {session.length} 句，得到 {starsEarned} 顆星星！
         </p>
@@ -79,7 +83,9 @@ export function SentencePracticeSession({
     setBusy(true);
     const stars = starsForDifficulty(current.difficulty);
     setStarsEarned((s) => s + stars);
+    setCorrectCount((c) => c + 1);
     setBurstKey((k) => k + 1);
+    setPillPulseKey((k) => k + 1);
     playStarSound();
     speakPraise();
     try {
@@ -111,8 +117,12 @@ export function SentencePracticeSession({
           {index + 1} / {session.length}
         </span>
         <span className="pill">{DIFFICULTY_LABELS[current.difficulty ?? "medium"]}</span>
-        <span className="pill">⭐️ {starsEarned}</span>
+        <span key={pillPulseKey} className="pill pill-pop">
+          ⭐️ {starsEarned}
+        </span>
       </div>
+
+      <StarTray total={session.length} filled={correctCount} />
 
       <div style={{ position: "relative" }}>
         <SentenceCard sentence={current.text} />

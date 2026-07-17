@@ -201,3 +201,20 @@ textarea {
   font-size: 0.85rem;
   font-weight: 700;
 }
+
+.pill-pop {
+  animation: pill-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pill-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.35);
+    background: var(--color-star);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
