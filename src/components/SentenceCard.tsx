@@ -14,7 +14,35 @@ interface Props {
   extraActions?: ReactNode;
 }
 
-const FULLWIDTH_PUNCTUATION = new Set(["，", "。", "！", "？", "、"]);
+/** Unicode's plain punctuation codepoints (，。「」etc.) are designed for
+ * *horizontal* text, so fonts draw them hugging a corner of their em-box
+ * (e.g. bottom-left, matching where a comma sits at the end of a horizontal
+ * line). Unicode separately defines "presentation forms for vertical text"
+ * for exactly this case — dedicated codepoints that real CJK fonts (Noto
+ * Sans TC, PingFang TC, Microsoft JhengHei) draw already centered (commas,
+ * full stops) or already hugging the correct edge to frame a column (corner
+ * brackets), because that's their whole purpose. Since this component lays
+ * out characters manually (not via CSS `writing-mode: vertical-rl`, which
+ * would trigger this glyph substitution automatically), we substitute the
+ * vertical forms ourselves at render time. Only affects display — the
+ * underlying sentence text and zhuyin lookups keep using the plain forms. */
+const VERTICAL_PUNCTUATION_FORMS: Record<string, string> = {
+  "，": "﹐",
+  "、": "﹑",
+  "。": "﹒",
+  "：": "﹕",
+  "；": "﹔",
+  "！": "﹗",
+  "？": "﹖",
+  "「": "﹁",
+  "」": "﹂",
+  "『": "﹃",
+  "』": "﹄",
+};
+
+function verticalGlyph(char: string): string {
+  return VERTICAL_PUNCTUATION_FORMS[char] ?? char;
+}
 
 /** Tone marks are always the last character pinyin-zhuyin appends to a
  * syllable's zhuyin string (2nd/3rd/4th tone, or the neutral-tone dot).
@@ -74,21 +102,17 @@ export function SentenceCard({ sentence, lineBreaks, extraActions }: Props) {
       >
         {columns.map((col, ci) => (
           <div key={ci} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-            {col.map((c, i) => (
+            {col.map((c, i) => {
+              return (
               <div key={i} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2 }}>
                 <span
                   style={{
                     fontSize: "2.2rem",
                     fontWeight: 700,
                     lineHeight: 1,
-                    // Full-width CJK punctuation glyphs (，。！？、) sit near
-                    // the top of their character box by font-design
-                    // convention, so without this they visually "float"
-                    // above the baseline the surrounding hanzi sit on.
-                    transform: FULLWIDTH_PUNCTUATION.has(c.char) ? "translateY(0.5em)" : undefined,
                   }}
                 >
-                  {c.char}
+                  {verticalGlyph(c.char)}
                 </span>
                 {c.zhuyin &&
                   (() => {
@@ -146,7 +170,8 @@ export function SentenceCard({ sentence, lineBreaks, extraActions }: Props) {
                     );
                   })()}
               </div>
-            ))}
+              );
+            })}
           </div>
         ))}
       </div>

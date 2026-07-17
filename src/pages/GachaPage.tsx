@@ -1,9 +1,12 @@
 import { useState } from "react";
+import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import type { AffectionDoc, CharacterDoc, CollectedPrizeDoc, CreatureVariant, SentenceDoc } from "../types";
 import { computeTotalStars } from "../lib/sentencePractice";
 import { savePrize } from "../lib/store";
 import { playStarSound } from "../lib/sound";
+import { speak } from "../lib/speech";
+import { toChineseCount } from "../lib/chineseNumerals";
 import { StarBurst } from "../components/StarBurst";
 import "../components/GachaCapsule.css";
 import {
@@ -13,10 +16,26 @@ import {
   VARIANT_BADGES,
   VARIANT_LABELS,
   allPrizeKeys,
+  computeAvailableStars,
   drawRandomPrize,
   prizeKey,
   speciesById,
 } from "../lib/gachaCatalog";
+
+/** Reset styles so a <button> can stand in for plain tappable text/headings
+ * without looking like a button. */
+const speakableButtonStyle: CSSProperties = {
+  background: "none",
+  border: "none",
+  padding: 0,
+  margin: 0,
+  font: "inherit",
+  color: "inherit",
+  textAlign: "left",
+  cursor: "pointer",
+  display: "block",
+  width: "100%",
+};
 
 interface Props {
   characters: CharacterDoc[];
@@ -34,9 +53,7 @@ export function GachaPage({ characters, sentences, prizes, affection, familyCode
   const [burstKey, setBurstKey] = useState(0);
 
   const totalStars = computeTotalStars(characters, sentences);
-  const spentOnDraws = prizes.length * GACHA_COST;
-  const spentOnGifts = affection.reduce((sum, a) => sum + a.starsSpent, 0);
-  const available = Math.max(0, totalStars - spentOnDraws - spentOnGifts);
+  const available = computeAvailableStars(totalStars, prizes.length, affection);
   const canDraw = available >= GACHA_COST && !drawing;
 
   const heartsByKey = new Map<string, number>();
@@ -71,22 +88,50 @@ export function GachaPage({ characters, sentences, prizes, affection, familyCode
 
   return (
     <div className="screen">
-      <h1 className="page-title">🎁 星星轉蛋</h1>
-      <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginTop: -8 }}>
+      <h1 className="page-title" style={{ margin: 0 }}>
+        <button
+          type="button"
+          style={{ ...speakableButtonStyle, fontSize: "inherit", fontWeight: "inherit" }}
+          onClick={() => speak("星星轉蛋")}
+        >
+          🎁 星星轉蛋
+        </button>
+      </h1>
+      <button
+        type="button"
+        style={{
+          ...speakableButtonStyle,
+          color: "var(--color-text-muted)",
+          fontSize: "0.9rem",
+          marginTop: -8,
+          marginBottom: 16,
+        }}
+        onClick={() => speak("累積練習賺到的星星，就可以轉蛋，解鎖怪獸一家人！")}
+      >
         用練習賺到的星星轉蛋，收集怪獸一家人！
-      </p>
+      </button>
 
       <div className="card" style={{ display: "flex", gap: 16, marginBottom: 16 }}>
-        <div style={{ flex: 1, textAlign: "center" }}>
+        <button
+          type="button"
+          style={{ ...speakableButtonStyle, flex: 1, textAlign: "center" }}
+          onClick={() => speak(`你現在有 ${toChineseCount(available)} 顆可用的星星。`)}
+        >
           <div style={{ fontSize: "1.6rem", fontWeight: 800 }}>⭐️ {available}</div>
           <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>可用星星</div>
-        </div>
-        <div style={{ flex: 1, textAlign: "center" }}>
+        </button>
+        <button
+          type="button"
+          style={{ ...speakableButtonStyle, flex: 1, textAlign: "center" }}
+          onClick={() =>
+            speak(`你已經蒐集了 ${ownedKeyCount} 種，一共有 ${totalKeyCount} 種怪獸。`)
+          }
+        >
           <div style={{ fontSize: "1.6rem", fontWeight: 800 }}>
             {ownedKeyCount} / {totalKeyCount}
           </div>
           <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>收集進度</div>
-        </div>
+        </button>
       </div>
 
       <div
@@ -106,7 +151,15 @@ export function GachaPage({ characters, sentences, prizes, affection, familyCode
         {reveal ? (
           <RevealCard reveal={reveal} burstKey={burstKey} />
         ) : (
-          <span className={`gacha-capsule${drawing ? " shaking" : ""}`}>🎁</span>
+          <button
+            type="button"
+            className={`gacha-capsule${drawing ? " shaking" : ""}`}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            onClick={() => speak(`轉蛋一次，要花 ${toChineseCount(GACHA_COST)} 顆星星。`)}
+            aria-label="轉蛋一次要花幾顆星星"
+          >
+            🎁
+          </button>
         )}
 
         <button className="btn btn-primary" style={{ width: "100%" }} disabled={!canDraw} onClick={handleDraw}>
@@ -187,39 +240,50 @@ function CollectionGrid({
 }) {
   return (
     <div className="card">
-      <p style={{ fontWeight: 700, margin: "0 0 4px" }}>🧸 我的收藏</p>
-      <p style={{ color: "var(--color-text-muted)", fontSize: "0.8rem", marginTop: 0, marginBottom: 12 }}>
+      <button
+        type="button"
+        style={{ ...speakableButtonStyle, fontWeight: 700, marginBottom: 4 }}
+        onClick={() => speak("我的收藏")}
+      >
+        🧸 我的收藏
+      </button>
+      <button
+        type="button"
+        style={{
+          ...speakableButtonStyle,
+          color: "var(--color-text-muted)",
+          fontSize: "0.8rem",
+          marginBottom: 12,
+        }}
+        onClick={() => speak("點一下已經轉到的怪獸，可以送禮物、養好感度！")}
+      >
         點一下已經轉到的怪獸，可以送禮物、養好感度！
-      </p>
+      </button>
       {CREATURE_SPECIES.map((species) => {
         const ownedForSpecies = CREATURE_VARIANTS.filter((v) =>
           ownedCounts.has(prizeKey(species.id, v)),
         ).length;
         return (
           <div key={species.id} style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <button
+              type="button"
+              style={{ ...speakableButtonStyle, display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}
+              onClick={() => speak(species.name)}
+            >
               <span style={{ fontSize: "1.3rem" }}>{species.emoji}</span>
               <strong style={{ fontSize: "0.95rem" }}>{species.name}</strong>
               <span style={{ color: "var(--color-text-muted)", fontSize: "0.8rem" }}>
                 {ownedForSpecies} / {CREATURE_VARIANTS.length}
               </span>
-            </div>
+            </button>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
               {CREATURE_VARIANTS.map((variant) => {
                 const key = prizeKey(species.id, variant);
                 const count = ownedCounts.get(key) ?? 0;
                 const owned = count > 0;
                 const hearts = heartsByKey.get(key) ?? 0;
-                const tile = (
-                  <div
-                    style={{
-                      textAlign: "center",
-                      borderRadius: 10,
-                      padding: "6px 2px",
-                      background: owned ? species.color : "#f1ede6",
-                      position: "relative",
-                    }}
-                  >
+                const tileInner = (
+                  <>
                     {owned && count > 1 && (
                       <span
                         style={{
@@ -245,14 +309,38 @@ function CollectionGrid({
                         ❤️{hearts}
                       </div>
                     )}
-                  </div>
+                  </>
                 );
+                const tileStyle: CSSProperties = {
+                  textAlign: "center",
+                  borderRadius: 10,
+                  padding: "6px 2px",
+                  background: owned ? species.color : "#f1ede6",
+                  position: "relative",
+                  border: "none",
+                  width: "100%",
+                  cursor: "pointer",
+                  font: "inherit",
+                };
                 return owned ? (
-                  <Link key={variant} to={`/gacha/${species.id}/${variant}`} style={{ textDecoration: "none", color: "inherit" }}>
-                    {tile}
+                  <Link
+                    key={variant}
+                    to={`/gacha/${species.id}/${variant}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                    onClick={() => speak(`${species.name}${VARIANT_LABELS[variant]}`)}
+                  >
+                    <div style={tileStyle}>{tileInner}</div>
                   </Link>
                 ) : (
-                  <div key={variant}>{tile}</div>
+                  <button
+                    key={variant}
+                    type="button"
+                    style={tileStyle}
+                    onClick={() => speak("你還沒蒐集到這個動物")}
+                    aria-label="還沒蒐集到這個動物"
+                  >
+                    {tileInner}
+                  </button>
                 );
               })}
             </div>

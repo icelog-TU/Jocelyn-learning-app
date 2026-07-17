@@ -78,6 +78,8 @@ function App() {
             <HomePage
               characters={characters}
               sentences={sentences}
+              prizes={prizes}
+              affection={affection}
               familyCode={familyCode}
               loading={loading}
               onChangeFamilyCode={leaveFamily}

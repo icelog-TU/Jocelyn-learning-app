@@ -146,6 +146,53 @@ export function playEnvelopeSound(): void {
   });
 }
 
+/** A bigger, richer fanfare than playStarSound() — for finishing an entire
+ * practice session. An ascending run followed by a held triumphant chord. */
+export function playCelebrationSound(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const startTime = ctx.currentTime;
+  const runNotes = [523.25, 659.25, 783.99, 1046.5, 1318.51]; // C5 E5 G5 C6 E6
+
+  runNotes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+
+    const noteStart = startTime + i * 0.09;
+    const noteEnd = noteStart + 0.22;
+    gain.gain.setValueAtTime(0, noteStart);
+    gain.gain.linearRampToValueAtTime(0.22, noteStart + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, noteEnd);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(noteStart);
+    osc.stop(noteEnd);
+  });
+
+  const chordStart = startTime + runNotes.length * 0.09 + 0.05;
+  const chordEnd = chordStart + 0.7;
+  [1046.5, 1318.51, 1567.98].forEach((freq) => {
+    // C6 E6 G6 chord
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.value = freq;
+
+    gain.gain.setValueAtTime(0, chordStart);
+    gain.gain.linearRampToValueAtTime(0.18, chordStart + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, chordEnd);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(chordStart);
+    osc.stop(chordEnd);
+  });
+}
+
 /** A warm double-pulse "thump-thump" for a heart landing on a creature —
  * distinct in timbre from both the star and spend sounds. */
 export function playHeartSound(): void {

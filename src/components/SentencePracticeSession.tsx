@@ -1,14 +1,17 @@
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SentenceDoc } from "../types";
 import { DIFFICULTY_LABELS, starsForDifficulty } from "../lib/sentencePractice";
 import { editSentenceText, saveSentenceReviewResult } from "../lib/store";
-import { playStarSound } from "../lib/sound";
+import { playCelebrationSound, playStarSound } from "../lib/sound";
 import { speak } from "../lib/speech";
 import { SentenceCard } from "./SentenceCard";
 import { StarBurst } from "./StarBurst";
 import { StarTray } from "./StarTray";
 import { RecordButton } from "./RecordButton";
+
+/** Budget for the completion-screen star count-up animation, in ms. */
+const CELEBRATION_COUNT_BUDGET_MS = 1400;
 
 const PRAISE_PHRASES = [
   "哇～你好棒！",
@@ -75,6 +78,11 @@ export function SentencePracticeSession({
   const isComplete = index >= localSession.length;
   const current = localSession[index];
 
+  const [displayedStars, setDisplayedStars] = useState(0);
+  const [celebrateKey, setCelebrateKey] = useState(0);
+  const celebratedRef = useRef(false);
+  const starCountTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (isComplete) return;
     setMinWaitDone(false);
@@ -84,14 +92,51 @@ export function SentencePracticeSession({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id]);
 
+  useEffect(() => {
+    if (!isComplete || celebratedRef.current) return;
+    celebratedRef.current = true;
+    playCelebrationSound();
+    speak(`太棒了！這次唸了${localSession.length}句，得到${starsEarned}顆星星！`, {
+      rate: 1,
+      pitch: 1.25,
+    });
+    setCelebrateKey((k) => k + 1);
+
+    const total = starsEarned;
+    setDisplayedStars(0);
+    if (total <= 0) return;
+    const stepMs = Math.max(60, Math.min(220, CELEBRATION_COUNT_BUDGET_MS / total));
+    let count = 0;
+    starCountTimerRef.current = window.setInterval(() => {
+      count += 1;
+      setDisplayedStars(count);
+      if (count >= total && starCountTimerRef.current) {
+        window.clearInterval(starCountTimerRef.current);
+        starCountTimerRef.current = null;
+      }
+    }, stepMs);
+    return () => {
+      if (starCountTimerRef.current) window.clearInterval(starCountTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isComplete]);
+
   if (isComplete) {
     return (
-      <div className="card" style={{ textAlign: "center" }}>
-        <div style={{ fontSize: "3rem" }}>🎉</div>
+      <div className="card celebration-card" style={{ textAlign: "center", position: "relative" }}>
+        <div className="celebration-emoji">🎉</div>
+        <StarBurst burstKey={celebrateKey} />
         <StarTray total={localSession.length} filled={correctCount} />
-        <p style={{ fontSize: "1.1rem" }}>
-          這次念了 {localSession.length} 句，得到 {starsEarned} 顆星星！
+        <p style={{ fontSize: "1.1rem", margin: "12px 0 4px" }}>
+          這次念了 {localSession.length} 句！
         </p>
+        <div key={celebrateKey} className="celebration-star-count">
+          <span className="celebration-star-emoji">⭐️</span>
+          <span key={displayedStars} className="celebration-star-number">
+            {displayedStars}
+          </span>
+        </div>
+        <p style={{ color: "var(--color-text-muted)", margin: "0 0 4px" }}>顆星星</p>
         {completionActions}
       </div>
     );

@@ -12,10 +12,10 @@ import { FloatingDelta } from "../components/FloatingDelta";
 import { StarBurst } from "../components/StarBurst";
 import {
   CREATURE_VARIANTS,
-  GACHA_COST,
   GIFT_OPTIONS,
   VARIANT_BADGES,
   VARIANT_LABELS,
+  computeAvailableStars,
   prizeKey,
   speciesById,
 } from "../lib/gachaCatalog";
@@ -53,9 +53,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
   const hearts = record?.hearts ?? 0;
 
   const totalStars = computeTotalStars(characters, sentences);
-  const spentOnDraws = prizes.length * GACHA_COST;
-  const spentOnGifts = affection.reduce((sum, a) => sum + a.starsSpent, 0);
-  const available = Math.max(0, totalStars - spentOnDraws - spentOnGifts);
+  const available = computeAvailableStars(totalStars, prizes.length, affection);
 
   // Hooks must run unconditionally every render, so they're all declared up
   // here, above the early-return guards below.

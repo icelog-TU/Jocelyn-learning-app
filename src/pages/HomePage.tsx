@@ -1,12 +1,15 @@
 import { Link } from "react-router-dom";
-import type { CharacterDoc, SentenceDoc } from "../types";
+import type { AffectionDoc, CharacterDoc, CollectedPrizeDoc, SentenceDoc } from "../types";
 import { dateKey } from "../lib/characters";
 import { countDueForReview } from "../lib/review";
 import { computeTotalStars } from "../lib/sentencePractice";
+import { computeAvailableStars } from "../lib/gachaCatalog";
 
 interface Props {
   characters: CharacterDoc[];
   sentences: SentenceDoc[];
+  prizes: CollectedPrizeDoc[];
+  affection: AffectionDoc[];
   familyCode: string;
   loading: boolean;
   onChangeFamilyCode: () => void;
@@ -15,11 +18,14 @@ interface Props {
 export function HomePage({
   characters,
   sentences,
+  prizes,
+  affection,
   familyCode,
   loading,
   onChangeFamilyCode,
 }: Props) {
   const totalStars = computeTotalStars(characters, sentences);
+  const availableStars = computeAvailableStars(totalStars, prizes.length, affection);
   const todayKey = dateKey();
   const addedToday = characters.filter((c) => c.addedDateKey === todayKey).length;
   const dueSentenceCount = countDueForReview(sentences);
@@ -30,8 +36,12 @@ export function HomePage({
 
       <div className="card" style={{ display: "flex", gap: 16, marginBottom: 16 }}>
         <Stat label="已學漢字／詞彙" value={loading ? "…" : characters.length} />
-        <Stat label="累積星星" value={loading ? "…" : totalStars} icon="⭐️" />
         <Stat label="今天新增" value={loading ? "…" : addedToday} />
+      </div>
+
+      <div className="card" style={{ display: "flex", gap: 16, marginBottom: 16 }}>
+        <Stat label="累積星星" value={loading ? "…" : totalStars} icon="⭐️" />
+        <Stat label="可用星星" value={loading ? "…" : availableStars} icon="⭐️" />
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>

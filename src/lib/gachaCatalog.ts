@@ -119,3 +119,16 @@ export function drawRandomPrize(): { speciesId: string; variant: CreatureVariant
   const variant = CREATURE_VARIANTS[Math.floor(Math.random() * CREATURE_VARIANTS.length)];
   return { speciesId: species.id, variant };
 }
+
+/** Stars still available to spend, after subtracting what's already gone into
+ * gacha draws and creature gifts from the lifetime total. Lifetime total can
+ * stay far above this once stars have been spent. */
+export function computeAvailableStars(
+  totalStars: number,
+  prizesCount: number,
+  affection: { starsSpent: number }[],
+): number {
+  const spentOnDraws = prizesCount * GACHA_COST;
+  const spentOnGifts = affection.reduce((sum, a) => sum + a.starsSpent, 0);
+  return Math.max(0, totalStars - spentOnDraws - spentOnGifts);
+}
