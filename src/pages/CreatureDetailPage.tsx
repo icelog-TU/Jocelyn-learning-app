@@ -1,9 +1,12 @@
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import type { AffectionDoc, CharacterDoc, CollectedPrizeDoc, CreatureVariant, SentenceDoc } from "../types";
 import { computeTotalStars } from "../lib/sentencePractice";
 import { giveGiftToCreature } from "../lib/store";
 import { speak } from "../lib/speech";
+import { playHeartSound, playSpendSound } from "../lib/sound";
 import { HeartMeter } from "../components/HeartMeter";
+import { FloatingDelta } from "../components/FloatingDelta";
 import {
   AFFECTION_MILESTONES,
   CREATURE_VARIANTS,
@@ -28,6 +31,69 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
   const { speciesId = "", variant = "" } = useParams<{ speciesId: string; variant: string }>();
   const species = speciesById(speciesId);
   const isValidVariant = (CREATURE_VARIANTS as string[]).includes(variant);
+  const typedVariant = (isValidVariant ? variant : "baby") as CreatureVariant;
+
+  const key = prizeKey(speciesId, typedVariant);
+  const record = affection.find((a) => a.id === key);
+  const hearts = record?.hearts ?? 0;
+
+  const totalStars = computeTotalStars(characters, sentences);
+  const spentOnDraws = prizes.length * GACHA_COST;
+  const spentOnGifts = affection.reduce((sum, a) => sum + a.starsSpent, 0);
+  const available = totalStars - spentOnDraws - spentOnGifts;
+
+  // Hooks must run unconditionally every render, so they're all declared up
+  // here, above the early-return guards below.
+  const [displayedAvailable, setDisplayedAvailable] = useState(available);
+  const [spendFx, setSpendFx] = useState<{ cost: number; key: number }>({ cost: 0, key: 0 });
+  const [heartFx, setHeartFx] = useState<{ gain: number; key: number }>({ gain: 0, key: 0 });
+  const [giving, setGiving] = useState(false);
+  const animatingRef = useRef(false);
+  const tickTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!animatingRef.current) setDisplayedAvailable(available);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [available]);
+
+  useEffect(() => {
+    return () => {
+      if (tickTimerRef.current !== null) window.clearInterval(tickTimerRef.current);
+    };
+  }, []);
+
+  function animateSpend(from: number, to: number) {
+    animatingRef.current = true;
+    if (tickTimerRef.current !== null) window.clearInterval(tickTimerRef.current);
+    const steps = from - to;
+    const stepMs = Math.max(35, Math.min(90, 400 / Math.max(steps, 1)));
+    let current = from;
+    tickTimerRef.current = window.setInterval(() => {
+      current -= 1;
+      setDisplayedAvailable(current);
+      if (current <= to) {
+        if (tickTimerRef.current !== null) window.clearInterval(tickTimerRef.current);
+        animatingRef.current = false;
+      }
+    }, stepMs);
+  }
+
+  async function handleGift(giftId: string) {
+    const gift = GIFT_OPTIONS.find((g) => g.id === giftId);
+    if (!gift || available < gift.cost || giving || !species) return;
+    setGiving(true);
+    playSpendSound();
+    setSpendFx({ cost: gift.cost, key: Date.now() });
+    animateSpend(displayedAvailable, displayedAvailable - gift.cost);
+
+    await giveGiftToCreature(familyCode, speciesId, typedVariant, gift.hearts, gift.cost);
+
+    window.setTimeout(() => {
+      playHeartSound();
+      setHeartFx({ gain: gift.hearts, key: Date.now() });
+      setGiving(false);
+    }, 450);
+  }
 
   if (!species || !isValidVariant) {
     return (
@@ -40,7 +106,6 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
     );
   }
 
-  const typedVariant = variant as CreatureVariant;
   const ownedCount = prizes.filter((p) => p.speciesId === speciesId && p.variant === typedVariant).length;
   const displayName = `${species.name}${VARIANT_LABELS[typedVariant]}`;
 
@@ -54,21 +119,6 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
         </Link>
       </div>
     );
-  }
-
-  const key = prizeKey(speciesId, typedVariant);
-  const record = affection.find((a) => a.id === key);
-  const hearts = record?.hearts ?? 0;
-
-  const totalStars = computeTotalStars(characters, sentences);
-  const spentOnDraws = prizes.length * GACHA_COST;
-  const spentOnGifts = affection.reduce((sum, a) => sum + a.starsSpent, 0);
-  const available = totalStars - spentOnDraws - spentOnGifts;
-
-  async function handleGift(giftId: string) {
-    const gift = GIFT_OPTIONS.find((g) => g.id === giftId);
-    if (!gift || available < gift.cost) return;
-    await giveGiftToCreature(familyCode, speciesId, typedVariant, gift.hearts, gift.cost);
   }
 
   const nextMilestone = AFFECTION_MILESTONES.find((m) => hearts < m);
@@ -85,7 +135,8 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
         </p>
       )}
 
-      <div className="card" style={{ marginBottom: 16, textAlign: "center" }}>
+      <div className="card" style={{ marginBottom: 16, textAlign: "center", position: "relative" }}>
+        <FloatingDelta text={`+${heartFx.gain}❤️`} triggerKey={heartFx.key} color="var(--color-success)" />
         <HeartMeter hearts={hearts} />
         <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
           {nextMilestone ? `再 ${nextMilestone - hearts} 點好感度解鎖新互動` : "已經是最要好的朋友了！"}
@@ -93,7 +144,13 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <p style={{ fontWeight: 700, margin: "0 0 6px" }}>⭐️ 可用星星：{available}</p>
+        <p style={{ fontWeight: 700, margin: "0 0 6px", position: "relative" }}>
+          <FloatingDelta text={`-${spendFx.cost}⭐️`} triggerKey={spendFx.key} color="var(--color-danger)" />
+          ⭐️ 可用星星：
+          <span key={spendFx.key} className={spendFx.key ? "pill-pop" : undefined} style={{ display: "inline-block" }}>
+            {displayedAvailable}
+          </span>
+        </p>
         <p style={{ fontWeight: 700, margin: "0 0 10px" }}>🎁 送禮物</p>
         <div style={{ display: "flex", gap: 8 }}>
           {GIFT_OPTIONS.map((gift) => (
@@ -101,7 +158,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
               key={gift.id}
               className="btn btn-secondary"
               style={{ flex: 1, fontSize: "0.8rem", lineHeight: 1.5 }}
-              disabled={available < gift.cost}
+              disabled={available < gift.cost || giving}
               onClick={() => handleGift(gift.id)}
             >
               {gift.emoji} {gift.label}

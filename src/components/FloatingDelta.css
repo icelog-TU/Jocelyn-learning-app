@@ -1,0 +1,26 @@
+.floating-delta {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  transform: translateX(-50%);
+  font-size: 1.2rem;
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: floating-delta-rise 1s ease-out forwards;
+}
+
+@keyframes floating-delta-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 6px) scale(0.8);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -6px) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -46px) scale(1);
+  }
+}
