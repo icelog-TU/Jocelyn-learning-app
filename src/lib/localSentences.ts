@@ -21,6 +21,12 @@ function writeAll(familyCode: string, sentences: SentenceDoc[]): void {
   window.dispatchEvent(new CustomEvent("local-sentences-changed", { detail: familyCode }));
 }
 
+/** Synchronous snapshot of everything currently in this device's local
+ * storage, without subscribing to changes. Used by the cloud-backup flow. */
+export function peekSentencesLocal(familyCode: string): SentenceDoc[] {
+  return readAll(familyCode);
+}
+
 export function subscribeSentencesLocal(
   familyCode: string,
   onChange: (sentences: SentenceDoc[]) => void,

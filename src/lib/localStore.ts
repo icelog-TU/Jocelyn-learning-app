@@ -19,6 +19,12 @@ function writeAll(familyCode: string, chars: CharacterDoc[]): void {
   window.dispatchEvent(new CustomEvent("local-characters-changed", { detail: familyCode }));
 }
 
+/** Synchronous snapshot of everything currently in this device's local
+ * storage, without subscribing to changes. Used by the cloud-backup flow. */
+export function peekCharactersLocal(familyCode: string): CharacterDoc[] {
+  return readAll(familyCode);
+}
+
 export function subscribeCharactersLocal(
   familyCode: string,
   onChange: (chars: CharacterDoc[]) => void,

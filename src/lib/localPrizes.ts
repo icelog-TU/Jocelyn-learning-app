@@ -18,6 +18,12 @@ function writeAll(familyCode: string, prizes: CollectedPrizeDoc[]): void {
   window.dispatchEvent(new CustomEvent("local-prizes-changed", { detail: familyCode }));
 }
 
+/** Synchronous snapshot of everything currently in this device's local
+ * storage, without subscribing to changes. Used by the cloud-backup flow. */
+export function peekPrizesLocal(familyCode: string): CollectedPrizeDoc[] {
+  return readAll(familyCode);
+}
+
 export function subscribePrizesLocal(
   familyCode: string,
   onChange: (prizes: CollectedPrizeDoc[]) => void,

@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import type { CharacterDoc, SentenceDoc, WeakCharDoc } from "../types";
 import { dateKey } from "../lib/characters";
 import { DIFFICULTY_LABELS } from "../lib/sentencePractice";
-import { removeCharacter, removeWeakCharEntry, saveWeakChar } from "../lib/store";
+import { removeCharacter, removeWeakCharEntry, saveWeakChar, usingCloudSync } from "../lib/store";
+import { backupLocalDataToCloud, peekLocalBackupSummary, type LocalBackupSummary } from "../lib/backup";
 
 interface Props {
   characters: CharacterDoc[];
@@ -94,6 +95,8 @@ export function HistoryPage({ characters, sentences, weakChars, familyCode }: Pr
     <div className="screen">
       <h1 className="page-title">學習紀錄</h1>
 
+      <SyncStatusSection familyCode={familyCode} />
+
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <button
           className={tab === "characters" ? "btn btn-primary" : "btn btn-outline"}
@@ -122,6 +125,76 @@ export function HistoryPage({ characters, sentences, weakChars, familyCode }: Pr
         </>
       ) : (
         <SentenceHistory sentences={sentences} />
+      )}
+    </div>
+  );
+}
+
+function SyncStatusSection({ familyCode }: { familyCode: string }) {
+  const [summary] = useState(() => peekLocalBackupSummary(familyCode));
+  const [state, setState] = useState<"idle" | "working" | "done" | "error">("idle");
+  const [result, setResult] = useState<LocalBackupSummary | null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  if (!usingCloudSync) {
+    return (
+      <div className="card" style={{ marginBottom: 16 }}>
+        <p style={{ fontWeight: 700, margin: "0 0 4px" }}>📴 目前是本機模式</p>
+        <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", margin: 0 }}>
+          資料只存在這台裝置的瀏覽器裡，換手機、清瀏覽器資料都會遺失。想要雲端備份、多裝置同步，需要先設定
+          Firebase（見 README「設定 Firebase 雲端同步」章節）。
+        </p>
+      </div>
+    );
+  }
+
+  const hasLocal =
+    summary.characters + summary.sentences + summary.weakChars + summary.prizes + summary.affection > 0;
+
+  if (!hasLocal && state !== "done") {
+    return (
+      <div className="card" style={{ marginBottom: 16 }}>
+        <p style={{ fontWeight: 700, margin: 0 }}>☁️ 雲端同步中，資料已經備份好了</p>
+      </div>
+    );
+  }
+
+  async function handleBackup() {
+    setState("working");
+    setErrorMsg("");
+    try {
+      const r = await backupLocalDataToCloud(familyCode);
+      setResult(r);
+      setState("done");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "備份失敗，請稍後再試一次");
+      setState("error");
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <p style={{ fontWeight: 700, margin: "0 0 4px" }}>☁️ 雲端同步中</p>
+      {state === "done" && result ? (
+        <p style={{ color: "var(--color-success)", fontSize: "0.85rem", margin: 0 }}>
+          ✅ 已經把這台裝置上的舊資料備份到雲端：{result.characters} 個字、{result.sentences} 句、
+          {result.prizes} 隻怪獸、{result.affection} 筆好感度。
+        </p>
+      ) : (
+        <>
+          <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", margin: "0 0 10px" }}>
+            這台裝置上還留著 {summary.characters} 個字、{summary.sentences} 句、{summary.prizes}{" "}
+            隻怪獸尚未同步到雲端，可能是設定雲端同步之前留下的舊資料。備份後本機資料還會保留，不會被刪掉。
+          </p>
+          <button className="btn btn-primary" onClick={handleBackup} disabled={state === "working"}>
+            {state === "working" ? "備份中…" : "立即備份到雲端"}
+          </button>
+          {state === "error" && (
+            <p style={{ color: "var(--color-danger)", fontSize: "0.85rem", margin: "8px 0 0" }}>
+              ⚠️ {errorMsg}
+            </p>
+          )}
+        </>
       )}
     </div>
   );

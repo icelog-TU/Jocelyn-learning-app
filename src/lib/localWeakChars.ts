@@ -18,6 +18,12 @@ function writeAll(familyCode: string, weakChars: WeakCharDoc[]): void {
   window.dispatchEvent(new CustomEvent("local-weak-chars-changed", { detail: familyCode }));
 }
 
+/** Synchronous snapshot of everything currently in this device's local
+ * storage, without subscribing to changes. Used by the cloud-backup flow. */
+export function peekWeakCharsLocal(familyCode: string): WeakCharDoc[] {
+  return readAll(familyCode);
+}
+
 export function subscribeWeakCharsLocal(
   familyCode: string,
   onChange: (weakChars: WeakCharDoc[]) => void,

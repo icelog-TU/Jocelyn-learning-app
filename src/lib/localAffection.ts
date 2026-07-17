@@ -19,6 +19,12 @@ function writeAll(familyCode: string, affection: AffectionDoc[]): void {
   window.dispatchEvent(new CustomEvent("local-affection-changed", { detail: familyCode }));
 }
 
+/** Synchronous snapshot of everything currently in this device's local
+ * storage, without subscribing to changes. Used by the cloud-backup flow. */
+export function peekAffectionLocal(familyCode: string): AffectionDoc[] {
+  return readAll(familyCode);
+}
+
 export function subscribeAffectionLocal(
   familyCode: string,
   onChange: (affection: AffectionDoc[]) => void,
