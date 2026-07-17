@@ -1,5 +1,6 @@
 import { useState } from "react";
-import type { CharacterDoc, CollectedPrizeDoc, CreatureVariant, SentenceDoc } from "../types";
+import { Link } from "react-router-dom";
+import type { AffectionDoc, CharacterDoc, CollectedPrizeDoc, CreatureVariant, SentenceDoc } from "../types";
 import { computeTotalStars } from "../lib/sentencePractice";
 import { savePrize } from "../lib/store";
 import { playStarSound } from "../lib/sound";
@@ -21,10 +22,11 @@ interface Props {
   characters: CharacterDoc[];
   sentences: SentenceDoc[];
   prizes: CollectedPrizeDoc[];
+  affection: AffectionDoc[];
   familyCode: string;
 }
 
-export function GachaPage({ characters, sentences, prizes, familyCode }: Props) {
+export function GachaPage({ characters, sentences, prizes, affection, familyCode }: Props) {
   const [drawing, setDrawing] = useState(false);
   const [reveal, setReveal] = useState<{ speciesId: string; variant: CreatureVariant; isNew: boolean } | null>(
     null,
@@ -32,9 +34,15 @@ export function GachaPage({ characters, sentences, prizes, familyCode }: Props) 
   const [burstKey, setBurstKey] = useState(0);
 
   const totalStars = computeTotalStars(characters, sentences);
-  const spentStars = prizes.length * GACHA_COST;
-  const available = totalStars - spentStars;
+  const spentOnDraws = prizes.length * GACHA_COST;
+  const spentOnGifts = affection.reduce((sum, a) => sum + a.starsSpent, 0);
+  const available = totalStars - spentOnDraws - spentOnGifts;
   const canDraw = available >= GACHA_COST && !drawing;
+
+  const heartsByKey = new Map<string, number>();
+  for (const a of affection) {
+    heartsByKey.set(a.id, a.hearts);
+  }
 
   const ownedCounts = new Map<string, number>();
   for (const p of prizes) {
@@ -111,7 +119,7 @@ export function GachaPage({ characters, sentences, prizes, familyCode }: Props) 
         )}
       </div>
 
-      <CollectionGrid ownedCounts={ownedCounts} />
+      <CollectionGrid ownedCounts={ownedCounts} heartsByKey={heartsByKey} />
     </div>
   );
 }
@@ -170,10 +178,19 @@ function RevealCard({
   );
 }
 
-function CollectionGrid({ ownedCounts }: { ownedCounts: Map<string, number> }) {
+function CollectionGrid({
+  ownedCounts,
+  heartsByKey,
+}: {
+  ownedCounts: Map<string, number>;
+  heartsByKey: Map<string, number>;
+}) {
   return (
     <div className="card">
-      <p style={{ fontWeight: 700, margin: "0 0 12px" }}>🧸 我的收藏</p>
+      <p style={{ fontWeight: 700, margin: "0 0 4px" }}>🧸 我的收藏</p>
+      <p style={{ color: "var(--color-text-muted)", fontSize: "0.8rem", marginTop: 0, marginBottom: 12 }}>
+        點一下已經轉到的怪獸，可以送禮物、養好感度！
+      </p>
       {CREATURE_SPECIES.map((species) => {
         const ownedForSpecies = CREATURE_VARIANTS.filter((v) =>
           ownedCounts.has(prizeKey(species.id, v)),
@@ -189,11 +206,12 @@ function CollectionGrid({ ownedCounts }: { ownedCounts: Map<string, number> }) {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
               {CREATURE_VARIANTS.map((variant) => {
-                const count = ownedCounts.get(prizeKey(species.id, variant)) ?? 0;
+                const key = prizeKey(species.id, variant);
+                const count = ownedCounts.get(key) ?? 0;
                 const owned = count > 0;
-                return (
+                const hearts = heartsByKey.get(key) ?? 0;
+                const tile = (
                   <div
-                    key={variant}
                     style={{
                       textAlign: "center",
                       borderRadius: 10,
@@ -222,7 +240,19 @@ function CollectionGrid({ ownedCounts }: { ownedCounts: Map<string, number> }) {
                     <div style={{ fontSize: "0.65rem", color: "var(--color-text-muted)" }}>
                       {VARIANT_LABELS[variant]}
                     </div>
+                    {owned && (
+                      <div style={{ fontSize: "0.65rem", color: "var(--color-primary-dark)", fontWeight: 700 }}>
+                        ❤️{hearts}
+                      </div>
+                    )}
                   </div>
+                );
+                return owned ? (
+                  <Link key={variant} to={`/gacha/${species.id}/${variant}`} style={{ textDecoration: "none", color: "inherit" }}>
+                    {tile}
+                  </Link>
+                ) : (
+                  <div key={variant}>{tile}</div>
                 );
               })}
             </div>

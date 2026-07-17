@@ -19,7 +19,10 @@ import { addWeakChar, removeWeakChar, subscribeWeakChars } from "./weakChars";
 import { addWeakCharLocal, removeWeakCharLocal, subscribeWeakCharsLocal } from "./localWeakChars";
 import { addPrize, subscribePrizes } from "./prizes";
 import { addPrizeLocal, subscribePrizesLocal } from "./localPrizes";
+import { giftToCreature, subscribeAffection } from "./affection";
+import { giftToCreatureLocal, subscribeAffectionLocal } from "./localAffection";
 import type {
+  AffectionDoc,
   CharacterDoc,
   CollectedPrizeDoc,
   CreatureVariant,
@@ -148,4 +151,27 @@ export function savePrize(
   return isFirebaseConfigured
     ? addPrize(familyCode, speciesId, variant)
     : addPrizeLocal(familyCode, speciesId, variant);
+}
+
+export function subscribeToAffection(
+  familyCode: string,
+  onChange: (affection: AffectionDoc[]) => void,
+  onError: (err: Error) => void,
+): () => void {
+  if (isFirebaseConfigured) {
+    return subscribeAffection(familyCode, onChange, onError);
+  }
+  return subscribeAffectionLocal(familyCode, onChange);
+}
+
+export function giveGiftToCreature(
+  familyCode: string,
+  speciesId: string,
+  variant: CreatureVariant,
+  hearts: number,
+  starsCost: number,
+): Promise<void> {
+  return isFirebaseConfigured
+    ? giftToCreature(familyCode, speciesId, variant, hearts, starsCost)
+    : giftToCreatureLocal(familyCode, speciesId, variant, hearts, starsCost);
 }

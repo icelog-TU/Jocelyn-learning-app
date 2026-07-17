@@ -69,3 +69,16 @@ export interface CollectedPrizeDoc {
   variant: CreatureVariant;
   obtainedAt: number;
 }
+
+/** Affection progress for one owned species+variant creature. `hearts` is a
+ * simple cumulative counter (gifts never decay it); `starsSpent` is the
+ * lifetime stars spent gifting this creature, used to compute the family's
+ * remaining star balance alongside gacha draw spending. */
+export interface AffectionDoc {
+  id: string;
+  speciesId: string;
+  variant: CreatureVariant;
+  hearts: number;
+  starsSpent: number;
+  updatedAt: number;
+}

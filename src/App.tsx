@@ -4,6 +4,7 @@ import { useCharacters } from "./hooks/useCharacters";
 import { useSentences } from "./hooks/useSentences";
 import { useWeakChars } from "./hooks/useWeakChars";
 import { usePrizes } from "./hooks/usePrizes";
+import { useAffection } from "./hooks/useAffection";
 import { FamilySetupPage } from "./pages/FamilySetupPage";
 import { HomePage } from "./pages/HomePage";
 import { AddCharactersPage } from "./pages/AddCharactersPage";
@@ -12,6 +13,7 @@ import { SentencePracticePage } from "./pages/SentencePracticePage";
 import { SentenceManagePage } from "./pages/SentenceManagePage";
 import { BatchPracticePage } from "./pages/BatchPracticePage";
 import { GachaPage } from "./pages/GachaPage";
+import { CreatureDetailPage } from "./pages/CreatureDetailPage";
 import { NavBar } from "./components/NavBar";
 import { saveWeakChar, removeWeakCharEntry } from "./lib/store";
 
@@ -22,6 +24,7 @@ function App() {
   const { sentences, loading: sentencesLoading } = useSentences(familyCode);
   const { weakChars } = useWeakChars(familyCode);
   const { prizes } = usePrizes(familyCode);
+  const { affection } = useAffection(familyCode);
   const weakCharSet = new Set(weakChars.map((w) => w.hanzi));
 
   function toggleWeakChar(char: string) {
@@ -138,6 +141,19 @@ function App() {
               characters={characters}
               sentences={sentences}
               prizes={prizes}
+              affection={affection}
+              familyCode={familyCode}
+            />
+          }
+        />
+        <Route
+          path="/gacha/:speciesId/:variant"
+          element={
+            <CreatureDetailPage
+              characters={characters}
+              sentences={sentences}
+              prizes={prizes}
+              affection={affection}
               familyCode={familyCode}
             />
           }

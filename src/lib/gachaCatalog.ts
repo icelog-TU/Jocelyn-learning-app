@@ -73,6 +73,27 @@ export const VARIANT_BADGES: Record<CreatureVariant, string> = {
 /** Stars needed for one gacha draw. */
 export const GACHA_COST = 5;
 
+export interface GiftOption {
+  id: string;
+  label: string;
+  emoji: string;
+  cost: number;
+  hearts: number;
+}
+
+/** Gift shop for raising a specific creature's affection. Bigger gifts are a
+ * more star-efficient way to raise hearts, rewarding kids who save up for a
+ * favourite creature over spreading stars thin across everyone. */
+export const GIFT_OPTIONS: GiftOption[] = [
+  { id: "treat", label: "小點心", emoji: "🍬", cost: 2, hearts: 1 },
+  { id: "toy", label: "小玩具", emoji: "🧸", cost: 5, hearts: 2 },
+  { id: "special", label: "特別禮物", emoji: "💝", cost: 10, hearts: 4 },
+];
+
+/** Heart thresholds that unlock a new affection-stage interaction. Index 0
+ * (the greeting) is always unlocked; these gate stages 1-3. */
+export const AFFECTION_MILESTONES = [3, 5, 10];
+
 export function speciesById(id: string): CreatureSpecies | undefined {
   return CREATURE_SPECIES.find((s) => s.id === id);
 }
