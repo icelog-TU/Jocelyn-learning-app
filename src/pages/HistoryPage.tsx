@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { CharacterDoc, SentenceDoc } from "../types";
+import type { CharacterDoc, SentenceDoc, WeakCharDoc } from "../types";
 import { dateKey } from "../lib/characters";
 import { DIFFICULTY_LABELS } from "../lib/sentencePractice";
+import { removeWeakCharEntry, saveWeakChar } from "../lib/store";
 
 interface Props {
   characters: CharacterDoc[];
   sentences: SentenceDoc[];
+  weakChars: WeakCharDoc[];
+  familyCode: string;
 }
 
 interface CharDayGroup {
@@ -78,7 +81,7 @@ function formatDate(key: string): string {
   return `${m}/${d}（週${weekday}）`;
 }
 
-export function HistoryPage({ characters, sentences }: Props) {
+export function HistoryPage({ characters, sentences, weakChars, familyCode }: Props) {
   const [tab, setTab] = useState<"characters" | "sentences">("characters");
 
   return (
@@ -103,9 +106,104 @@ export function HistoryPage({ characters, sentences }: Props) {
       </div>
 
       {tab === "characters" ? (
-        <CharacterHistory characters={characters} />
+        <>
+          <WeakCharsSection weakChars={weakChars} familyCode={familyCode} />
+          <CharacterHistory characters={characters} />
+        </>
       ) : (
         <SentenceHistory sentences={sentences} />
+      )}
+    </div>
+  );
+}
+
+function WeakCharsSection({ weakChars, familyCode }: { weakChars: WeakCharDoc[]; familyCode: string }) {
+  const navigate = useNavigate();
+  const [input, setInput] = useState("");
+
+  function handleAdd() {
+    const trimmed = input.trim();
+    const chars = Array.from(trimmed);
+    if (chars.length !== 1 || !/\p{Script=Han}/u.test(chars[0])) return;
+    saveWeakChar(familyCode, chars[0]);
+    setInput("");
+  }
+
+  function practiceChar(hanzi: string) {
+    navigate("/sentences", { state: { prefillChar: hanzi } });
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <p style={{ fontWeight: 700, margin: "0 0 6px" }}>🧩 需要加強練習的字</p>
+      <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", marginTop: 0 }}>
+        練習句子時點一下不會念的字會自動加進來，也可以在這裡手動加入或刪除。AI 之後造句會盡量把這些字帶進去。
+      </p>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleAdd();
+          }}
+          placeholder="輸入一個字"
+          style={{ flex: 1 }}
+        />
+        <button className="btn btn-secondary" onClick={handleAdd}>
+          加入
+        </button>
+      </div>
+
+      {weakChars.length === 0 ? (
+        <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", margin: 0 }}>
+          還沒有標記不熟的字。
+        </p>
+      ) : (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {weakChars.map((w) => (
+            <div
+              key={w.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+                background: "#fff8ee",
+                borderRadius: 10,
+                padding: "4px 4px 4px 12px",
+              }}
+            >
+              <span style={{ fontSize: "1.2rem" }}>{w.hanzi}</span>
+              <button
+                onClick={() => practiceChar(w.hanzi)}
+                aria-label="用這個字造句"
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "1rem",
+                  padding: "4px 6px",
+                }}
+              >
+                🪄
+              </button>
+              <button
+                onClick={() => removeWeakCharEntry(familyCode, w.id)}
+                aria-label="移除"
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--color-text-muted)",
+                  fontSize: "1rem",
+                  padding: "4px 6px",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

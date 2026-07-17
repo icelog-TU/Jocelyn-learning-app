@@ -25,9 +25,17 @@ interface Props {
   familyCode: string;
   characters: CharacterDoc[];
   sentences: SentenceDoc[];
+  weakChars: Set<string>;
+  onToggleWeakChar: (char: string) => void;
 }
 
-export function AddCharactersPage({ familyCode, characters, sentences }: Props) {
+export function AddCharactersPage({
+  familyCode,
+  characters,
+  sentences,
+  weakChars,
+  onToggleWeakChar,
+}: Props) {
   const [rawInput, setRawInput] = useState("");
   const [pending, setPending] = useState<Pending | null>(null);
   const [saving, setSaving] = useState(false);
@@ -84,7 +92,13 @@ export function AddCharactersPage({ familyCode, characters, sentences }: Props) 
       const knownCharsList = [
         ...new Set([...characters.flatMap((c) => Array.from(c.hanzi)), ...Array.from(savedWord)]),
       ];
-      const newTexts = await generateSentences(knownCharsList, savedWord, difficulty, GENERATE_COUNT);
+      const newTexts = await generateSentences(
+        knownCharsList,
+        savedWord,
+        difficulty,
+        GENERATE_COUNT,
+        [...weakChars],
+      );
       if (newTexts.length === 0) {
         setGenPhase("error");
         setGenError(`這次沒有生成出用到「${savedWord}」的合適句子，可以再試一次看看！`);
@@ -121,6 +135,8 @@ export function AddCharactersPage({ familyCode, characters, sentences }: Props) 
           key={practiceSession.map((s) => s.id).join(",")}
           session={practiceSession}
           familyCode={familyCode}
+          weakChars={weakChars}
+          onToggleWeakChar={onToggleWeakChar}
           completionActions={
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <Link to="/history" className="btn btn-outline" style={{ flex: 1 }}>

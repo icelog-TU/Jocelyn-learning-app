@@ -6,13 +6,14 @@ interface Props {
   knownChars: Set<string>;
   onCancel: () => void;
   onConfirm: (targetText: string, difficulty: SentenceDifficulty) => void;
+  initialChar?: string;
 }
 
 const DIFFICULTY_OPTIONS: SentenceDifficulty[] = ["easy", "medium", "hard"];
 const MAX_TARGET_LENGTH = 6;
 
-export function GenerateSentenceDialog({ knownChars, onCancel, onConfirm }: Props) {
-  const [charInput, setCharInput] = useState("");
+export function GenerateSentenceDialog({ knownChars, onCancel, onConfirm, initialChar }: Props) {
+  const [charInput, setCharInput] = useState(initialChar ?? "");
   const [difficulty, setDifficulty] = useState<SentenceDifficulty>("medium");
   const [error, setError] = useState<string | null>(null);
 

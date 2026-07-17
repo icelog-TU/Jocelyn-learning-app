@@ -15,7 +15,15 @@ import {
   subscribeSentencesLocal,
   updateSentenceTextLocal,
 } from "./localSentences";
-import type { CharacterDoc, NewCharacterInput, SentenceDifficulty, SentenceDoc } from "../types";
+import { addWeakChar, removeWeakChar, subscribeWeakChars } from "./weakChars";
+import { addWeakCharLocal, removeWeakCharLocal, subscribeWeakCharsLocal } from "./localWeakChars";
+import type {
+  CharacterDoc,
+  NewCharacterInput,
+  SentenceDifficulty,
+  SentenceDoc,
+  WeakCharDoc,
+} from "../types";
 
 export const usingCloudSync = isFirebaseConfigured;
 
@@ -85,4 +93,27 @@ export function removeSentence(familyCode: string, sentenceId: string): Promise<
   return isFirebaseConfigured
     ? deleteSentenceDoc(familyCode, sentenceId)
     : deleteSentenceLocal(familyCode, sentenceId);
+}
+
+export function subscribeToWeakChars(
+  familyCode: string,
+  onChange: (weakChars: WeakCharDoc[]) => void,
+  onError: (err: Error) => void,
+): () => void {
+  if (isFirebaseConfigured) {
+    return subscribeWeakChars(familyCode, onChange, onError);
+  }
+  return subscribeWeakCharsLocal(familyCode, onChange);
+}
+
+export function saveWeakChar(familyCode: string, hanzi: string): Promise<void> {
+  return isFirebaseConfigured
+    ? addWeakChar(familyCode, hanzi)
+    : addWeakCharLocal(familyCode, hanzi);
+}
+
+export function removeWeakCharEntry(familyCode: string, id: string): Promise<void> {
+  return isFirebaseConfigured
+    ? removeWeakChar(familyCode, id)
+    : removeWeakCharLocal(familyCode, id);
 }

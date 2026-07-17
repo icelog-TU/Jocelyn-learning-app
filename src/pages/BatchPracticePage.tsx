@@ -5,9 +5,11 @@ import { SentencePracticeSession } from "../components/SentencePracticeSession";
 interface Props {
   sentences: SentenceDoc[];
   familyCode: string;
+  weakChars: Set<string>;
+  onToggleWeakChar: (char: string) => void;
 }
 
-export function BatchPracticePage({ sentences, familyCode }: Props) {
+export function BatchPracticePage({ sentences, familyCode, weakChars, onToggleWeakChar }: Props) {
   const location = useLocation();
   const ids = (location.state as { ids?: string[] } | null)?.ids ?? [];
   const byId = new Map(sentences.map((s) => [s.id, s]));
@@ -36,6 +38,8 @@ export function BatchPracticePage({ sentences, familyCode }: Props) {
         key={ids.join(",")}
         session={session}
         familyCode={familyCode}
+        weakChars={weakChars}
+        onToggleWeakChar={onToggleWeakChar}
         completionActions={
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <Link to="/history" className="btn btn-outline" style={{ flex: 1 }}>

@@ -68,9 +68,11 @@ interface RequestBody {
   targetText?: unknown;
   difficulty?: unknown;
   count?: unknown;
+  focusChars?: unknown;
 }
 
 const MAX_TARGET_LENGTH = 6;
+const MAX_FOCUS_CHARS = 15;
 
 function isHanChar(ch: string): boolean {
   return /\p{Script=Han}/u.test(ch);
@@ -117,17 +119,31 @@ export default {
         : null;
     const difficulty = parseDifficulty(body.difficulty);
     const count = Math.min(Math.max(Math.trunc(Number(body.count) || 5), 1), 10);
+    const focusChars = Array.isArray(body.focusChars)
+      ? body.focusChars
+          .filter((c): c is string => typeof c === "string" && c.length === 1 && isHanChar(c))
+          .filter((c) => c !== targetText)
+          .slice(0, MAX_FOCUS_CHARS)
+      : [];
 
     if (knownChars.length === 0 || !targetText) {
       return jsonResponse({ sentences: [] }, 200, headers);
     }
 
-    const allowedSet = new Set([...knownChars, ...targetChars, ...GRAMMAR_WHITELIST]);
+    const allowedSet = new Set([...knownChars, ...targetChars, ...focusChars, ...GRAMMAR_WHITELIST]);
     const allowedListText = [...allowedSet].join("");
+
+    const focusHint =
+      focusChars.length > 0
+        ? `加強練習字（如果可以自然地把其中一個或幾個字組合成有意義的詞用進句子裡，就儘量用進去，` +
+          `例如「相」「信」在一起可以自然地寫成「相信」；不用每一句都用到，也不用勉強湊，能自然用上就用）：` +
+          `${focusChars.join(" ")}\n\n`
+        : "";
 
     const userPrompt =
       `允許用字清單（只能用這些字，不可以用清單以外的任何國字）：\n${allowedListText}\n\n` +
       `目標字或詞（每一句都必須完整包含這個字或詞，盡量跟其他允許用字組成有意義的詞語或句子）：${targetText}\n\n` +
+      focusHint +
       `句子長度要求：${DIFFICULTY_GUIDANCE[difficulty]}\n\n` +
       `請生成 ${count + GENERATION_BUFFER[difficulty]} 個句子，輸出 JSON：{"sentences": ["句子1", "句子2", ...]}`;
 

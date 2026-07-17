@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import type { CharacterDoc, SentenceDifficulty, SentenceDoc } from "../types";
 import { pickReviewSession } from "../lib/review";
 import { generateSentences, isSentencePracticeConfigured } from "../lib/sentencePractice";
@@ -17,6 +17,8 @@ interface Props {
   sentences: SentenceDoc[];
   sentencesLoading: boolean;
   familyCode: string;
+  weakChars: Set<string>;
+  onToggleWeakChar: (char: string) => void;
 }
 
 export function SentencePracticePage({
@@ -24,15 +26,33 @@ export function SentencePracticePage({
   sentences,
   sentencesLoading,
   familyCode,
+  weakChars,
+  onToggleWeakChar,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [session, setSession] = useState<SentenceDoc[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
+  const [prefillChar, setPrefillChar] = useState<string | undefined>(undefined);
 
   const initializedRef = useRef(false);
   const generationMarkerRef = useRef(0);
-  const knownChars = new Set(characters.flatMap((c) => Array.from(c.hanzi)));
+  const prefillHandledRef = useRef(false);
+  // Weak chars are, by definition, already-learned content, so they count
+  // as "known" even if manually added without a separate CharacterDoc entry.
+  const knownChars = new Set([...characters.flatMap((c) => Array.from(c.hanzi)), ...weakChars]);
+  const location = useLocation();
+
+  // Arriving from a weak-char "🪄 造句" link opens the dialog pre-filled
+  // with that character so it doesn't have to be retyped.
+  useEffect(() => {
+    const target = (location.state as { prefillChar?: string } | null)?.prefillChar;
+    if (target && !prefillHandledRef.current) {
+      prefillHandledRef.current = true;
+      setPrefillChar(target);
+      setShowDialog(true);
+    }
+  }, [location.state]);
 
   async function handleGenerate(targetText: string, difficulty: SentenceDifficulty) {
     setShowDialog(false);
@@ -45,6 +65,7 @@ export function SentencePracticePage({
         targetText,
         difficulty,
         GENERATE_COUNT,
+        [...weakChars],
       );
       if (newTexts.length === 0) {
         setPhase("error");
@@ -89,8 +110,12 @@ export function SentencePracticePage({
   const dialog = showDialog && (
     <GenerateSentenceDialog
       knownChars={knownChars}
-      onCancel={() => setShowDialog(false)}
+      onCancel={() => {
+        setShowDialog(false);
+        setPrefillChar(undefined);
+      }}
       onConfirm={handleGenerate}
+      initialChar={prefillChar}
     />
   );
 
@@ -128,7 +153,10 @@ export function SentencePracticePage({
           <button
             className="btn btn-primary btn-block"
             style={{ marginTop: 12 }}
-            onClick={() => setShowDialog(true)}
+            onClick={() => {
+              setPrefillChar(undefined);
+              setShowDialog(true);
+            }}
           >
             重試一次
           </button>
@@ -147,7 +175,10 @@ export function SentencePracticePage({
           <button
             className="btn btn-primary btn-block"
             style={{ marginTop: 12 }}
-            onClick={() => setShowDialog(true)}
+            onClick={() => {
+              setPrefillChar(undefined);
+              setShowDialog(true);
+            }}
           >
             🪄 產生新句子
           </button>
@@ -175,6 +206,8 @@ export function SentencePracticePage({
         key={session.map((s) => s.id).join(",")}
         session={session}
         familyCode={familyCode}
+        weakChars={weakChars}
+        onToggleWeakChar={onToggleWeakChar}
         completionActions={
           <>
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
@@ -184,7 +217,10 @@ export function SentencePracticePage({
               <button
                 className="btn btn-primary"
                 style={{ flex: 1 }}
-                onClick={() => setShowDialog(true)}
+                onClick={() => {
+              setPrefillChar(undefined);
+              setShowDialog(true);
+            }}
               >
                 🪄 產生新句子
               </button>
@@ -212,7 +248,10 @@ export function SentencePracticePage({
             }}
           >
             <button
-              onClick={() => setShowDialog(true)}
+              onClick={() => {
+              setPrefillChar(undefined);
+              setShowDialog(true);
+            }}
               style={{
                 background: "none",
                 border: "none",

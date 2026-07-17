@@ -30,3 +30,11 @@ export interface SentenceDoc {
   createdAt: number;
   stats: CharacterStats;
 }
+
+/** A single character flagged as needing extra practice (learned but hard
+ * to read). AI sentence generation tries to weave these in opportunistically. */
+export interface WeakCharDoc {
+  id: string;
+  hanzi: string;
+  addedAt: number;
+}
