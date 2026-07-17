@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import type { SentenceDoc } from "../types";
 import { DIFFICULTY_LABELS, starsForDifficulty } from "../lib/sentencePractice";
-import { saveSentenceReviewResult } from "../lib/store";
+import { editSentenceText, saveSentenceReviewResult } from "../lib/store";
 import { playStarSound } from "../lib/sound";
 import { SentenceCard } from "./SentenceCard";
 import { StarBurst } from "./StarBurst";
@@ -54,29 +54,51 @@ export function SentencePracticeSession({
   weakChars,
   onToggleWeakChar,
 }: Props) {
+  const [localSession, setLocalSession] = useState(session);
   const [index, setIndex] = useState(0);
   const [starsEarned, setStarsEarned] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
   const [burstKey, setBurstKey] = useState(0);
   const [pillPulseKey, setPillPulseKey] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
-  const isComplete = index >= session.length;
+  const isComplete = index >= localSession.length;
 
   if (isComplete) {
     return (
       <div className="card" style={{ textAlign: "center" }}>
         <div style={{ fontSize: "3rem" }}>🎉</div>
-        <StarTray total={session.length} filled={correctCount} />
+        <StarTray total={localSession.length} filled={correctCount} />
         <p style={{ fontSize: "1.1rem" }}>
-          這次念了 {session.length} 句，得到 {starsEarned} 顆星星！
+          這次念了 {localSession.length} 句，得到 {starsEarned} 顆星星！
         </p>
         {completionActions}
       </div>
     );
   }
 
-  const current = session[index];
+  const current = localSession[index];
+
+  function startEdit() {
+    setEditText(current.text);
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    const trimmed = editText.trim();
+    if (!trimmed) return;
+    setSavingEdit(true);
+    try {
+      await editSentenceText(familyCode, current.id, trimmed);
+      setLocalSession((prev) => prev.map((s) => (s.id === current.id ? { ...s, text: trimmed } : s)));
+      setEditing(false);
+    } finally {
+      setSavingEdit(false);
+    }
+  }
 
   async function handleCorrect() {
     if (busy) return;
@@ -114,7 +136,7 @@ export function SentencePracticeSession({
         }}
       >
         <span className="pill">
-          {index + 1} / {session.length}
+          {index + 1} / {localSession.length}
         </span>
         <span className="pill">{DIFFICULTY_LABELS[current.difficulty ?? "medium"]}</span>
         <span key={pillPulseKey} className="pill pill-pop">
@@ -122,14 +144,65 @@ export function SentencePracticeSession({
         </span>
       </div>
 
-      <StarTray total={session.length} filled={correctCount} />
+      <StarTray total={localSession.length} filled={correctCount} />
 
-      <div style={{ position: "relative" }}>
-        <SentenceCard sentence={current.text} />
-        <StarBurst burstKey={burstKey} />
-      </div>
+      {editing ? (
+        <div className="card">
+          <textarea
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            rows={2}
+            autoFocus
+            style={{
+              width: "100%",
+              fontSize: "1.2rem",
+              padding: 10,
+              borderRadius: 12,
+              border: "2px solid #eee0d0",
+              fontFamily: "inherit",
+              resize: "none",
+            }}
+          />
+          <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+            <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setEditing(false)}>
+              取消
+            </button>
+            <button
+              className="btn btn-primary"
+              style={{ flex: 1 }}
+              disabled={savingEdit}
+              onClick={saveEdit}
+            >
+              {savingEdit ? "儲存中…" : "儲存"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div style={{ position: "relative" }}>
+            <SentenceCard sentence={current.text} />
+            <StarBurst burstKey={burstKey} />
+          </div>
+          <div style={{ textAlign: "center", margin: "8px 0 0" }}>
+            <button
+              onClick={startEdit}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--color-secondary)",
+                fontSize: "0.85rem",
+                textDecoration: "underline",
+                cursor: "pointer",
+                padding: 4,
+              }}
+            >
+              ✏️ 這句可以改得更好？點這裡修改
+            </button>
+          </div>
+        </>
+      )}
 
-      {onToggleWeakChar && (
+      {!editing && onToggleWeakChar && (
         <div style={{ margin: "12px 0" }}>
           <p
             style={{
@@ -167,22 +240,26 @@ export function SentencePracticeSession({
         </div>
       )}
 
-      <div style={{ textAlign: "center", margin: "16px 0" }}>
-        <RecordButton key={current.id} />
-      </div>
+      {!editing && (
+        <>
+          <div style={{ textAlign: "center", margin: "16px 0" }}>
+            <RecordButton key={current.id} />
+          </div>
 
-      <p style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "16px 0" }}>
-        請她把整句話念出來，念對了嗎？
-      </p>
+          <p style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "16px 0" }}>
+            請她把整句話念出來，念對了嗎？
+          </p>
 
-      <div style={{ display: "flex", gap: 10 }}>
-        <button className="btn btn-outline btn-block" disabled={busy} onClick={handleSkip}>
-          先跳過
-        </button>
-        <button className="btn btn-primary btn-block" disabled={busy} onClick={handleCorrect}>
-          🎉 我念對了！
-        </button>
-      </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button className="btn btn-outline btn-block" disabled={busy} onClick={handleSkip}>
+              先跳過
+            </button>
+            <button className="btn btn-primary btn-block" disabled={busy} onClick={handleCorrect}>
+              🎉 我念對了！
+            </button>
+          </div>
+        </>
+      )}
 
       {activeFooter}
     </div>
