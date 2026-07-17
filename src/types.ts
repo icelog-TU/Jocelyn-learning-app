@@ -36,6 +36,13 @@ export interface SentenceDoc {
   origin: SentenceOrigin;
   createdAt: number;
   stats: CharacterStats;
+  /** Manually-chosen positions (character offsets into `text`, sorted) where
+   * the vertical-reading layout should start a new column, so a parent can
+   * fix mechanical/awkward line breaks (e.g. splitting "一隻" from "大黑狗")
+   * into natural phrase breaks. Undefined/empty falls back to the automatic
+   * fixed-length chunking. Cleared whenever `text` is edited, since old
+   * offsets would no longer line up with the new text. */
+  lineBreaks?: number[];
 }
 
 export interface NewSentenceEntry {

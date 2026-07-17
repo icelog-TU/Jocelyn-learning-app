@@ -95,8 +95,10 @@ export async function updateSentenceTextLocal(
   text: string,
 ): Promise<void> {
   const existing = readAll(familyCode);
+  // Manual line breaks are character offsets into the old text, so they'd
+  // point at the wrong place (or be out of range) once the text changes.
   const updated = existing.map((s) =>
-    s.id === sentenceId ? { ...s, text, origin: "edited" as const } : s,
+    s.id === sentenceId ? { ...s, text, origin: "edited" as const, lineBreaks: undefined } : s,
   );
   writeAll(familyCode, updated);
 }
@@ -108,6 +110,18 @@ export async function updateSentenceDifficultyLocal(
 ): Promise<void> {
   const existing = readAll(familyCode);
   const updated = existing.map((s) => (s.id === sentenceId ? { ...s, difficulty } : s));
+  writeAll(familyCode, updated);
+}
+
+export async function updateSentenceLineBreaksLocal(
+  familyCode: string,
+  sentenceId: string,
+  lineBreaks: number[],
+): Promise<void> {
+  const existing = readAll(familyCode);
+  const updated = existing.map((s) =>
+    s.id === sentenceId ? { ...s, lineBreaks: lineBreaks.length > 0 ? lineBreaks : undefined } : s,
+  );
   writeAll(familyCode, updated);
 }
 

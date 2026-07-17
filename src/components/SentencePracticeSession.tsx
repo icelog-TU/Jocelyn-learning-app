@@ -197,6 +197,7 @@ export function SentencePracticeSession({
           <div style={{ position: "relative" }}>
             <SentenceCard
               sentence={current.text}
+              lineBreaks={current.lineBreaks}
               extraActions={
                 <RecordButton
                   key={current.id}

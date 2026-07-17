@@ -1,6 +1,7 @@
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   onSnapshot,
@@ -43,6 +44,7 @@ export function subscribeSentences(
             box: data.stats?.box ?? 1,
             lastReviewedAt: data.stats?.lastReviewedAt ?? null,
           },
+          lineBreaks: Array.isArray(data.lineBreaks) ? data.lineBreaks : undefined,
         };
       });
       onChange(sentences);
@@ -111,9 +113,12 @@ export async function updateSentenceText(
   text: string,
 ): Promise<void> {
   if (!db) throw new Error("Firestore is not configured");
+  // Manual line breaks are character offsets into the old text, so they'd
+  // point at the wrong place (or be out of range) once the text changes.
   await updateDoc(doc(db, "families", familyCode, "sentences", sentenceId), {
     text,
     origin: "edited",
+    lineBreaks: deleteField(),
   });
 }
 
@@ -124,6 +129,17 @@ export async function updateSentenceDifficulty(
 ): Promise<void> {
   if (!db) throw new Error("Firestore is not configured");
   await updateDoc(doc(db, "families", familyCode, "sentences", sentenceId), { difficulty });
+}
+
+export async function updateSentenceLineBreaks(
+  familyCode: string,
+  sentenceId: string,
+  lineBreaks: number[],
+): Promise<void> {
+  if (!db) throw new Error("Firestore is not configured");
+  await updateDoc(doc(db, "families", familyCode, "sentences", sentenceId), {
+    lineBreaks: lineBreaks.length > 0 ? lineBreaks : deleteField(),
+  });
 }
 
 export async function deleteSentenceDoc(familyCode: string, sentenceId: string): Promise<void> {

@@ -1,5 +1,6 @@
 .gift-card {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -23,10 +24,16 @@
   color: var(--color-text);
 }
 
+.gift-card-icon-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
 .gift-card-row {
   display: flex;
   gap: 1px;
-  flex-wrap: wrap;
   justify-content: center;
   font-size: 0.85rem;
   line-height: 1.3;

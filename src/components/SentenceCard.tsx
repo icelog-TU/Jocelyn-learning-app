@@ -4,6 +4,10 @@ import { speak } from "../lib/speech";
 
 interface Props {
   sentence: string;
+  /** Manually-chosen column-break positions (character offsets into
+   * `sentence`); see SentenceDoc.lineBreaks. Falls back to mechanical
+   * fixed-length chunking when absent. */
+  lineBreaks?: number[];
   /** Rendered in the same row as "聽整句", right next to it, so related
    * audio controls (e.g. the record button) sit at the same height instead
    * of being scrolled far away from each other. */
@@ -30,19 +34,28 @@ function splitZhuyin(zhuyin: string): { base: string[]; tone?: string } {
 
 /** Max characters per reading column before wrapping to the next column
  * (to the left), matching how a printed page of vertical Chinese text
- * breaks into columns rather than one endless line. */
+ * breaks into columns rather than one endless line. Also used as a safety
+ * cap on manually-set segments, in case one runs unexpectedly long. */
 const COLUMN_SIZE = 6;
 
-function chunkIntoColumns(chars: AnnotatedChar[]): AnnotatedChar[][] {
+function chunkIntoColumns(chars: AnnotatedChar[], lineBreaks?: number[]): AnnotatedChar[][] {
   const columns: AnnotatedChar[][] = [];
-  for (let i = 0; i < chars.length; i += COLUMN_SIZE) {
-    columns.push(chars.slice(i, i + COLUMN_SIZE));
+  const breaks =
+    lineBreaks && lineBreaks.length > 0
+      ? [...new Set(lineBreaks)].filter((b) => b > 0 && b < chars.length).sort((a, b) => a - b)
+      : [];
+  const bounds = [0, ...breaks, chars.length];
+  for (let b = 0; b < bounds.length - 1; b++) {
+    const segment = chars.slice(bounds[b], bounds[b + 1]);
+    for (let i = 0; i < segment.length; i += COLUMN_SIZE) {
+      columns.push(segment.slice(i, i + COLUMN_SIZE));
+    }
   }
   return columns;
 }
 
-export function SentenceCard({ sentence, extraActions }: Props) {
-  const columns = chunkIntoColumns(zhuyinForSentence(sentence));
+export function SentenceCard({ sentence, lineBreaks, extraActions }: Props) {
+  const columns = chunkIntoColumns(zhuyinForSentence(sentence), lineBreaks);
 
   return (
     <div className="card" style={{ textAlign: "center", padding: "24px 16px" }}>

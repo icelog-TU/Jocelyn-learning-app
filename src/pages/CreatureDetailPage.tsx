@@ -7,6 +7,7 @@ import { speakAsRole } from "../lib/voiceProvider";
 import { playEnvelopeSound, playHeartSound, playInsufficientSound, playPatSound, playSpendSound } from "../lib/sound";
 import { FriendshipPath } from "../components/FriendshipPath";
 import { GiftCard } from "../components/GiftCard";
+import { HeartProgress } from "../components/HeartProgress";
 import { FloatingDelta } from "../components/FloatingDelta";
 import { StarBurst } from "../components/StarBurst";
 import {
@@ -19,6 +20,7 @@ import {
   speciesById,
 } from "../lib/gachaCatalog";
 import {
+  AFFECTION_STAGES,
   currentStageIndex,
   firstMeetingText,
   letterText,
@@ -58,6 +60,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
   // Hooks must run unconditionally every render, so they're all declared up
   // here, above the early-return guards below.
   const [displayedAvailable, setDisplayedAvailable] = useState(available);
+  const [displayedHearts, setDisplayedHearts] = useState(hearts);
   const [spendFx, setSpendFx] = useState<{ cost: number; key: number }>({ cost: 0, key: 0 });
   const [heartFx, setHeartFx] = useState<{ gain: number; key: number }>({ gain: 0, key: 0 });
   const [giving, setGiving] = useState(false);
@@ -72,6 +75,8 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
   const [patKey, setPatKey] = useState(0);
   const animatingRef = useRef(false);
   const tickTimerRef = useRef<number | null>(null);
+  const heartsAnimatingRef = useRef(false);
+  const heartsTickTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!animatingRef.current) setDisplayedAvailable(available);
@@ -79,8 +84,14 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
   }, [available]);
 
   useEffect(() => {
+    if (!heartsAnimatingRef.current) setDisplayedHearts(hearts);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hearts]);
+
+  useEffect(() => {
     return () => {
       if (tickTimerRef.current !== null) window.clearInterval(tickTimerRef.current);
+      if (heartsTickTimerRef.current !== null) window.clearInterval(heartsTickTimerRef.current);
     };
   }, []);
 
@@ -90,13 +101,20 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
     setEnvelopeOpen(false);
     setGreetingText("");
     setPatText("");
+    heartsAnimatingRef.current = false;
+    setDisplayedHearts(hearts);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
+
+  // Purchase feedback is intentionally slow (roughly 0.6-1.2s total) so a
+  // child can actually watch the number change, not just see it jump.
+  const FEEDBACK_BUDGET_MS = 1200;
 
   function animateSpend(from: number, to: number) {
     animatingRef.current = true;
     if (tickTimerRef.current !== null) window.clearInterval(tickTimerRef.current);
     const steps = from - to;
-    const stepMs = Math.max(35, Math.min(90, 400 / Math.max(steps, 1)));
+    const stepMs = Math.max(80, Math.min(300, FEEDBACK_BUDGET_MS / Math.max(steps, 1)));
     let current = from;
     tickTimerRef.current = window.setInterval(() => {
       current -= 1;
@@ -104,6 +122,22 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
       if (current <= to) {
         if (tickTimerRef.current !== null) window.clearInterval(tickTimerRef.current);
         animatingRef.current = false;
+      }
+    }, stepMs);
+  }
+
+  function animateHeartsGain(from: number, to: number) {
+    heartsAnimatingRef.current = true;
+    if (heartsTickTimerRef.current !== null) window.clearInterval(heartsTickTimerRef.current);
+    const steps = to - from;
+    const stepMs = Math.max(80, Math.min(300, FEEDBACK_BUDGET_MS / Math.max(steps, 1)));
+    let current = from;
+    heartsTickTimerRef.current = window.setInterval(() => {
+      current += 1;
+      setDisplayedHearts(current);
+      if (current >= to) {
+        if (heartsTickTimerRef.current !== null) window.clearInterval(heartsTickTimerRef.current);
+        heartsAnimatingRef.current = false;
       }
     }, stepMs);
   }
@@ -126,11 +160,17 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
     setSpendFx({ cost: gift.cost, key: Date.now() });
     setGiftFlyFx({ emoji: gift.emoji, key: Date.now() });
     animateSpend(displayedAvailable, displayedAvailable - gift.cost);
+    // Block the hearts prop → displayedHearts sync while we wait, so the
+    // underlying value updating early (as soon as the write resolves)
+    // doesn't make the heart row jump ahead of the deliberately slow reveal.
+    heartsAnimatingRef.current = true;
+    const startHearts = hearts;
 
     await giveGiftToCreature(familyCode, speciesId, typedVariant, gift.hearts, gift.cost);
 
     window.setTimeout(() => {
       playHeartSound();
+      animateHeartsGain(startHearts, startHearts + gift.hearts);
       setHeartFx({ gain: gift.hearts, key: Date.now() });
       setBurstKey((k) => k + 1);
       setReactKey(Date.now());
@@ -186,10 +226,15 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
   const stageIdx = currentStageIndex(hearts);
   const moodEmoji = MOOD_EMOJI[stageIdx];
 
-  function renderStagePanel() {
+  /** Renders the interactive content for one friendship-path stage. Called
+   * for every currently-unlocked stage (not just the highest one), so a
+   * parent can scroll down and revisit earlier stages instead of them
+   * disappearing the moment a new one unlocks. */
+  function renderStagePanel(idx: number) {
     if (!species) return null;
+    const heartLabel = idx > 0 ? `（❤️${AFFECTION_STAGES[idx].threshold}）` : "";
 
-    if (stageIdx === 0) {
+    if (idx === 0) {
       const text = firstMeetingText(displayName, typedVariant);
       return (
         <>
@@ -198,17 +243,14 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
           <button className="btn btn-outline" onClick={() => speakAsRole(text, typedVariant)}>
             🔊 播放
           </button>
-          <p style={{ marginTop: 12, fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
-            送禮物讓好感度增加，就可以打招呼囉！
-          </p>
         </>
       );
     }
 
-    if (stageIdx === 1) {
+    if (idx === 1) {
       return (
         <>
-          <p className="stage-panel-title">👋 打招呼</p>
+          <p className="stage-panel-title">👋 打招呼{heartLabel}</p>
           {greetingText && <p style={{ margin: "0 0 10px", fontSize: "1.1rem" }}>{greetingText}</p>}
           <button className="btn btn-primary btn-block" onClick={handleGreet}>
             🔊 跟{displayName}打招呼
@@ -217,10 +259,10 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
       );
     }
 
-    if (stageIdx === 2) {
+    if (idx === 2) {
       return (
         <>
-          <p className="stage-panel-title">🤗 一起玩</p>
+          <p className="stage-panel-title">🤗 一起玩{heartLabel}</p>
           <p style={{ margin: "0 0 10px", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
             點一下上面的{displayName}，摸摸牠的頭！
           </p>
@@ -231,10 +273,10 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
       );
     }
 
-    if (stageIdx === 3) {
+    if (idx === 3) {
       return (
         <>
-          <p className="stage-panel-title">💌 一封信</p>
+          <p className="stage-panel-title">💌 一封信{heartLabel}</p>
           {envelopeOpen ? (
             <div className="envelope-reveal" style={{ textAlign: "center" }}>
               <div style={{ fontSize: "2.5rem" }}>
@@ -266,7 +308,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
     const secretLine = secretIntroText(displayName, typedVariant);
     return (
       <>
-        <p className="stage-panel-title">💖 最好的朋友</p>
+        <p className="stage-panel-title">💖 最好的朋友{heartLabel}</p>
         <p style={{ margin: "0 0 10px" }}>{secretLine}</p>
         <div className="profile-card-grid">
           <div className="profile-card-row">
@@ -337,7 +379,8 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
           <FloatingDelta text={patText} triggerKey={patKey} color="var(--color-primary-dark)" />
         </div>
 
-        <FriendshipPath hearts={hearts} />
+        <HeartProgress filled={displayedHearts} />
+        <FriendshipPath hearts={hearts} variant={typedVariant} />
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
@@ -368,9 +411,13 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
         </div>
       </div>
 
-      <div className="card">{renderStagePanel()}</div>
+      {Array.from({ length: stageIdx + 1 }, (_, i) => stageIdx - i).map((idx) => (
+        <div className="card" style={{ marginBottom: 12 }} key={idx}>
+          {renderStagePanel(idx)}
+        </div>
+      ))}
 
-      <Link to="/gacha" className="btn btn-outline btn-block" style={{ marginTop: 16 }}>
+      <Link to="/gacha" className="btn btn-outline btn-block" style={{ marginTop: 4 }}>
         回轉蛋頁
       </Link>
     </div>

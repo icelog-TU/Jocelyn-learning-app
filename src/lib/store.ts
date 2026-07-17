@@ -13,6 +13,7 @@ import {
   resetAllSentenceStats,
   subscribeSentences,
   updateSentenceDifficulty,
+  updateSentenceLineBreaks,
   updateSentenceText,
 } from "./sentences";
 import {
@@ -22,6 +23,7 @@ import {
   resetAllSentenceStatsLocal,
   subscribeSentencesLocal,
   updateSentenceDifficultyLocal,
+  updateSentenceLineBreaksLocal,
   updateSentenceTextLocal,
 } from "./localSentences";
 import { addWeakChar, removeWeakChar, subscribeWeakChars } from "./weakChars";
@@ -120,6 +122,16 @@ export function editSentenceDifficulty(
   return isFirebaseConfigured
     ? updateSentenceDifficulty(familyCode, sentenceId, difficulty)
     : updateSentenceDifficultyLocal(familyCode, sentenceId, difficulty);
+}
+
+export function editSentenceLineBreaks(
+  familyCode: string,
+  sentenceId: string,
+  lineBreaks: number[],
+): Promise<void> {
+  return isFirebaseConfigured
+    ? updateSentenceLineBreaks(familyCode, sentenceId, lineBreaks)
+    : updateSentenceLineBreaksLocal(familyCode, sentenceId, lineBreaks);
 }
 
 export function removeSentence(familyCode: string, sentenceId: string): Promise<void> {
