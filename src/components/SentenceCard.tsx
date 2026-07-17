@@ -1,11 +1,16 @@
+import type { ReactNode } from "react";
 import { zhuyinForSentence } from "../lib/zhuyin";
 import { speak } from "../lib/speech";
 
 interface Props {
   sentence: string;
+  /** Rendered in the same row as "聽整句", right next to it, so related
+   * audio controls (e.g. the record button) sit at the same height instead
+   * of being scrolled far away from each other. */
+  extraActions?: ReactNode;
 }
 
-export function SentenceCard({ sentence }: Props) {
+export function SentenceCard({ sentence, extraActions }: Props) {
   const chars = zhuyinForSentence(sentence);
 
   return (
@@ -29,9 +34,12 @@ export function SentenceCard({ sentence }: Props) {
           </div>
         ))}
       </div>
-      <button className="btn btn-outline" onClick={() => speak(sentence, { rate: 0.8 })} aria-label="播放整句發音">
-        🔊 聽整句
-      </button>
+      <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+        <button className="btn btn-outline" onClick={() => speak(sentence, { rate: 0.8 })} aria-label="播放整句發音">
+          🔊 聽整句
+        </button>
+        {extraActions}
+      </div>
     </div>
   );
 }

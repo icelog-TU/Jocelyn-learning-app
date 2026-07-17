@@ -195,7 +195,16 @@ export function SentencePracticeSession({
       ) : (
         <>
           <div style={{ position: "relative" }}>
-            <SentenceCard sentence={current.text} />
+            <SentenceCard
+              sentence={current.text}
+              extraActions={
+                <RecordButton
+                  key={current.id}
+                  onRecorded={() => setHasRecorded(true)}
+                  onUnavailable={() => setMicRequired(false)}
+                />
+              }
+            />
             <StarBurst burstKey={burstKey} />
           </div>
           <div style={{ textAlign: "center", margin: "8px 0 0" }}>
@@ -257,14 +266,6 @@ export function SentencePracticeSession({
 
       {!editing && (
         <>
-          <div style={{ textAlign: "center", margin: "16px 0" }}>
-            <RecordButton
-              key={current.id}
-              onRecorded={() => setHasRecorded(true)}
-              onUnavailable={() => setMicRequired(false)}
-            />
-          </div>
-
           <p style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "16px 0" }}>
             請她把整句話念出來，念對了嗎？
           </p>
