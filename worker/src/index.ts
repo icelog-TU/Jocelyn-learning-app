@@ -29,6 +29,12 @@ const SYSTEM_PROMPT =
   "「學校」「學生」「學會」「好學」；如果目標本身就是一個詞，例如「毛毛蟲」，就直接把這個詞自然地" +
   "用在句子裡），讓句子讀起來像繪本裡自然的句子，不要把目標孤立地硬塞進句子。句子要生活化、口語、" +
   "符合五歲小孩的理解程度。請務必遵守使用者指定的句子長度要求。使用繁體中文（台灣用語）。" +
+  "最重要的一點：每一句都必須是文法完全正確、通順自然、母語者會真的這樣說的中文句子，" +
+  "絕對不能為了塞進允許用字或湊長度，硬把幾個字堆疊成不通順的句子。例如「晚上的狗在叫聲」文法" +
+  "是錯的（「在叫」是動詞用法，「叫聲」是名詞用法，兩個不能這樣接在一起），正確應該寫成" +
+  "「晚上的狗在叫」或「我聽到狗的叫聲」這種通順的說法。生成每一句之後，請在心裡檢查一次：" +
+  "這句話文法對嗎？一個中文母語者會這樣說嗎？如果不通順，就換一個字詞組合或句型，直到通順為止，" +
+  "寧可句子簡單一點，也不要文法有問題。" +
   '請直接輸出 JSON，格式為 {"sentences": ["句子1", "句子2"]}，不要加任何其他文字或說明。';
 
 function corsHeaders(allowedOrigin: string): Record<string, string> {
@@ -124,13 +130,13 @@ export default {
           Authorization: `Bearer ${env.OPENAI_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "gpt-4o",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
             { role: "user", content: userPrompt },
           ],
           response_format: { type: "json_object" },
-          temperature: 0.9,
+          temperature: 0.6,
         }),
       });
     } catch {
