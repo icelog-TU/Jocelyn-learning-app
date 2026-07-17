@@ -1,4 +1,4 @@
-import type { CharacterStats, SentenceDifficulty, SentenceDoc } from "../types";
+import type { CharacterStats, NewSentenceEntry, SentenceDifficulty, SentenceDoc } from "../types";
 import { nextStats } from "./review";
 
 function storageKey(familyCode: string): string {
@@ -9,8 +9,8 @@ function readAll(familyCode: string): SentenceDoc[] {
   try {
     const raw = localStorage.getItem(storageKey(familyCode));
     const parsed = raw ? (JSON.parse(raw) as SentenceDoc[]) : [];
-    // Sentences saved before difficulty existed default to "medium".
-    return parsed.map((s) => ({ ...s, difficulty: s.difficulty ?? "medium" }));
+    // Sentences saved before difficulty/origin existed default sensibly.
+    return parsed.map((s) => ({ ...s, difficulty: s.difficulty ?? "medium", origin: s.origin ?? "ai" }));
   } catch {
     return [];
   }
@@ -53,17 +53,18 @@ const INITIAL_STATS: CharacterStats = {
 
 export async function addSentenceBatchLocal(
   familyCode: string,
-  texts: string[],
+  entries: NewSentenceEntry[],
   sourceChars: string[],
   difficulty: SentenceDifficulty,
 ): Promise<void> {
   const now = Date.now();
   const existing = readAll(familyCode);
-  const additions: SentenceDoc[] = texts.map((text, i) => ({
+  const additions: SentenceDoc[] = entries.map((entry, i) => ({
     id: `${now}-${i}-${Math.random().toString(36).slice(2, 8)}`,
-    text,
+    text: entry.text,
     sourceChars,
     difficulty,
+    origin: entry.origin,
     createdAt: now,
     stats: INITIAL_STATS,
   }));
@@ -88,7 +89,9 @@ export async function updateSentenceTextLocal(
   text: string,
 ): Promise<void> {
   const existing = readAll(familyCode);
-  const updated = existing.map((s) => (s.id === sentenceId ? { ...s, text } : s));
+  const updated = existing.map((s) =>
+    s.id === sentenceId ? { ...s, text, origin: "edited" as const } : s,
+  );
   writeAll(familyCode, updated);
 }
 

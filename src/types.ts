@@ -22,13 +22,25 @@ export interface NewCharacterInput {
 
 export type SentenceDifficulty = "easy" | "medium" | "hard";
 
+/** Where a sentence's text came from: "ai" = untouched AI output,
+ * "user" = typed by the parent from scratch, "edited" = AI output the
+ * parent modified. Used to pick good few-shot examples for future
+ * generations and to show provenance in the UI. */
+export type SentenceOrigin = "ai" | "user" | "edited";
+
 export interface SentenceDoc {
   id: string;
   text: string;
   sourceChars: string[];
   difficulty: SentenceDifficulty;
+  origin: SentenceOrigin;
   createdAt: number;
   stats: CharacterStats;
+}
+
+export interface NewSentenceEntry {
+  text: string;
+  origin: SentenceOrigin;
 }
 
 /** A single character flagged as needing extra practice (learned but hard

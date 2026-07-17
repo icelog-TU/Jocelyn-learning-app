@@ -27,6 +27,7 @@ export async function generateSentences(
   difficulty: SentenceDifficulty,
   count: number,
   focusChars: string[] = [],
+  referenceSentences: string[] = [],
 ): Promise<string[]> {
   const endpoint = import.meta.env.VITE_SENTENCE_API_URL;
   if (!endpoint) {
@@ -36,7 +37,7 @@ export async function generateSentences(
   const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ knownChars, targetText, difficulty, count, focusChars }),
+    body: JSON.stringify({ knownChars, targetText, difficulty, count, focusChars, referenceSentences }),
   });
 
   if (!res.ok) {

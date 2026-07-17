@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { SentenceDoc } from "../types";
+import type { SentenceDoc, SentenceOrigin } from "../types";
 import { editSentenceText, removeSentence } from "../lib/store";
 import { DIFFICULTY_LABELS } from "../lib/sentencePractice";
+
+const ORIGIN_LABELS: Record<SentenceOrigin, string> = {
+  ai: "AI",
+  user: "你寫的",
+  edited: "你修改過",
+};
 
 interface Props {
   sentences: SentenceDoc[];
@@ -74,6 +80,7 @@ export function SentenceManagePage({ sentences, familyCode }: Props) {
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 {s.sourceChars[0] && <span className="pill">衍生自「{s.sourceChars[0]}」</span>}
                 <span className="pill">{DIFFICULTY_LABELS[s.difficulty ?? "medium"]}</span>
+                <span className="pill">{ORIGIN_LABELS[s.origin ?? "ai"]}</span>
                 <span className="pill">{"★".repeat(Math.min(s.stats.box, 5))}</span>
                 <div style={{ flex: 1 }} />
                 <button className="btn btn-outline" onClick={() => startEdit(s)}>

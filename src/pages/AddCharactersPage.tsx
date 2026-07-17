@@ -9,6 +9,7 @@ import {
   isSentencePracticeConfigured,
 } from "../lib/sentencePractice";
 import { SentencePracticeSession } from "../components/SentencePracticeSession";
+import { SentenceDraftEditor, type DraftEntry } from "../components/SentenceDraftEditor";
 
 const GENERATE_COUNT = 5;
 const DIFFICULTY_OPTIONS: SentenceDifficulty[] = ["easy", "medium", "hard"];
@@ -19,14 +20,16 @@ interface Pending {
   candidates: string[];
 }
 
-type GenPhase = "idle" | "generating" | "waiting-for-sync" | "error";
-
 interface Props {
   familyCode: string;
   characters: CharacterDoc[];
   sentences: SentenceDoc[];
   weakChars: Set<string>;
   onToggleWeakChar: (char: string) => void;
+}
+
+function draftKey(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function AddCharactersPage({
@@ -42,8 +45,10 @@ export function AddCharactersPage({
   const [savedWord, setSavedWord] = useState<string | null>(null);
   const [alreadyKnown, setAlreadyKnown] = useState(false);
   const [difficulty, setDifficulty] = useState<SentenceDifficulty>("medium");
-  const [genPhase, setGenPhase] = useState<GenPhase>("idle");
+  const [drafts, setDrafts] = useState<DraftEntry[] | null>(null);
+  const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  const [savingDrafts, setSavingDrafts] = useState(false);
   const [practiceSession, setPracticeSession] = useState<SentenceDoc[] | null>(null);
 
   const generationMarkerRef = useRef(0);
@@ -60,7 +65,7 @@ export function AddCharactersPage({
       setSavedWord(trimmed);
       setAlreadyKnown(true);
       setDifficulty("medium");
-      setGenPhase("idle");
+      setDrafts(null);
       setGenError(null);
       setPracticeSession(null);
       setRawInput("");
@@ -85,7 +90,7 @@ export function AddCharactersPage({
       setAlreadyKnown(false);
       setPending(null);
       setDifficulty("medium");
-      setGenPhase("idle");
+      setDrafts(null);
       setGenError(null);
       setPracticeSession(null);
     } finally {
@@ -96,53 +101,99 @@ export function AddCharactersPage({
   function handleStartOver() {
     setSavedWord(null);
     setAlreadyKnown(false);
-    setPracticeSession(null);
-    setGenPhase("idle");
+    setDrafts(null);
     setGenError(null);
+    setPracticeSession(null);
   }
 
   async function handleGenerate() {
     if (!savedWord) return;
-    setGenPhase("generating");
+    setGenerating(true);
     setGenError(null);
     try {
       const knownCharsList = [
         ...new Set([...characters.flatMap((c) => Array.from(c.hanzi)), ...Array.from(savedWord)]),
       ];
+      const referenceSentences = sentences
+        .filter((s) => s.sourceChars[0] === savedWord && (s.origin === "user" || s.origin === "edited"))
+        .map((s) => s.text)
+        .slice(0, 5);
       const newTexts = await generateSentences(
         knownCharsList,
         savedWord,
         difficulty,
         GENERATE_COUNT,
         [...weakChars],
+        referenceSentences,
       );
       if (newTexts.length === 0) {
-        setGenPhase("error");
-        setGenError(`這次沒有生成出用到「${savedWord}」的合適句子，可以再試一次看看！`);
+        setGenError(`這次沒有生成出用到「${savedWord}」的合適句子，可以再試一次，或是自己寫句子！`);
         return;
       }
-      generationMarkerRef.current = Date.now();
-      await saveSentenceBatch(familyCode, newTexts, [savedWord], difficulty);
-      setGenPhase("waiting-for-sync");
+      const aiDrafts: DraftEntry[] = newTexts.map((text) => ({ key: draftKey(), text, origin: "ai" }));
+      setDrafts((prev) => {
+        // Keep anything the parent already wrote or edited; only replace the
+        // untouched AI lines with the fresh batch.
+        const kept = (prev ?? []).filter((d) => d.origin !== "ai");
+        return [...kept, ...aiDrafts];
+      });
     } catch (err) {
-      setGenPhase("error");
       setGenError(err instanceof Error ? err.message : "發生錯誤，請稍後再試一次");
+    } finally {
+      setGenerating(false);
     }
   }
 
-  // After saving a freshly-generated batch, wait for the subscription to
-  // reflect it (with real IDs) before starting the practice session.
+  function handleWriteOwn() {
+    setGenError(null);
+    setDrafts((prev) => prev ?? []);
+  }
+
+  function handleUpdateDraftText(key: string, text: string) {
+    setDrafts((prev) =>
+      prev
+        ? prev.map((d) => (d.key === key ? { ...d, text, origin: d.origin === "ai" ? "edited" : d.origin } : d))
+        : prev,
+    );
+  }
+
+  function handleRemoveDraft(key: string) {
+    setDrafts((prev) => (prev ? prev.filter((d) => d.key !== key) : prev));
+  }
+
+  function handleAddDraft(text: string) {
+    setDrafts((prev) => [...(prev ?? []), { key: draftKey(), text, origin: "user" }]);
+  }
+
+  async function handleConfirmDrafts() {
+    if (!savedWord || !drafts || drafts.length === 0) return;
+    setSavingDrafts(true);
+    try {
+      generationMarkerRef.current = Date.now();
+      await saveSentenceBatch(
+        familyCode,
+        drafts.map((d) => ({ text: d.text, origin: d.origin })),
+        [savedWord],
+        difficulty,
+      );
+    } finally {
+      setSavingDrafts(false);
+    }
+  }
+
+  // After confirming drafts, wait for the subscription to reflect the saved
+  // batch (with real IDs) before starting the practice session.
   useEffect(() => {
-    if (genPhase !== "waiting-for-sync" || !savedWord) return;
+    if (!savedWord || generationMarkerRef.current === 0 || practiceSession) return;
     const fresh = sentences.filter(
       (s) => s.createdAt >= generationMarkerRef.current && s.sourceChars[0] === savedWord,
     );
     if (fresh.length > 0) {
-      setPracticeSession(fresh.slice(0, GENERATE_COUNT));
-      setGenPhase("idle");
+      setPracticeSession(fresh);
+      generationMarkerRef.current = 0;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [genPhase, sentences, savedWord]);
+  }, [sentences, savedWord, practiceSession]);
 
   if (practiceSession) {
     return (
@@ -254,12 +305,17 @@ export function AddCharactersPage({
             {alreadyKnown ? `📚 「${savedWord}」已經學過囉，一起來造句練習吧！` : `✅ 已新增「${savedWord}」`}
           </p>
 
-          {!isSentencePracticeConfigured ? (
-            <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
-              AI 造句練習還沒設定好，請看 README 設定 Cloudflare Worker 後就能為這個字產生練習句子。
-            </p>
-          ) : genPhase === "generating" || genPhase === "waiting-for-sync" ? (
-            <p style={{ textAlign: "center", padding: "12px 0" }}>AI 出題中，請稍等一下…</p>
+          {drafts !== null ? (
+            <SentenceDraftEditor
+              drafts={drafts}
+              onUpdateText={handleUpdateDraftText}
+              onRemove={handleRemoveDraft}
+              onAdd={handleAddDraft}
+              onConfirm={handleConfirmDrafts}
+              onRegenerate={isSentencePracticeConfigured ? handleGenerate : undefined}
+              regenerating={generating}
+              saving={savingDrafts}
+            />
           ) : (
             <>
               <div className="field">
@@ -283,9 +339,26 @@ export function AddCharactersPage({
 
               {genError && <p style={{ color: "var(--color-danger)", fontSize: "0.9rem" }}>{genError}</p>}
 
-              <button className="btn btn-primary btn-block" onClick={handleGenerate}>
-                🪄 產生 5 句練習句子
-              </button>
+              <div style={{ display: "flex", gap: 10 }}>
+                {isSentencePracticeConfigured && (
+                  <button
+                    className="btn btn-primary"
+                    style={{ flex: 1 }}
+                    disabled={generating}
+                    onClick={handleGenerate}
+                  >
+                    {generating ? "AI 出題中…" : "🪄 產生 5 句練習句子"}
+                  </button>
+                )}
+                <button className="btn btn-outline" style={{ flex: 1 }} onClick={handleWriteOwn}>
+                  ✍️ 自己寫句子
+                </button>
+              </div>
+              {!isSentencePracticeConfigured && (
+                <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", marginTop: 10 }}>
+                  AI 造句還沒設定好（見 README），但還是可以自己寫句子來練習。
+                </p>
+              )}
             </>
           )}
 

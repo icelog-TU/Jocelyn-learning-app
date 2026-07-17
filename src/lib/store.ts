@@ -20,6 +20,7 @@ import { addWeakCharLocal, removeWeakCharLocal, subscribeWeakCharsLocal } from "
 import type {
   CharacterDoc,
   NewCharacterInput,
+  NewSentenceEntry,
   SentenceDifficulty,
   SentenceDoc,
   WeakCharDoc,
@@ -60,13 +61,13 @@ export function subscribeToSentences(
 
 export function saveSentenceBatch(
   familyCode: string,
-  texts: string[],
+  entries: NewSentenceEntry[],
   sourceChars: string[],
   difficulty: SentenceDifficulty,
 ): Promise<void> {
   return isFirebaseConfigured
-    ? addSentenceBatch(familyCode, texts, sourceChars, difficulty)
-    : addSentenceBatchLocal(familyCode, texts, sourceChars, difficulty);
+    ? addSentenceBatch(familyCode, entries, sourceChars, difficulty)
+    : addSentenceBatchLocal(familyCode, entries, sourceChars, difficulty);
 }
 
 export function saveSentenceReviewResult(

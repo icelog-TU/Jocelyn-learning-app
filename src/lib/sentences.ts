@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { nextStats } from "./review";
-import type { CharacterStats, SentenceDifficulty, SentenceDoc } from "../types";
+import type { CharacterStats, NewSentenceEntry, SentenceDifficulty, SentenceDoc } from "../types";
 
 function familySentencesRef(familyCode: string) {
   if (!db) throw new Error("Firestore is not configured");
@@ -34,6 +34,7 @@ export function subscribeSentences(
           text: data.text ?? "",
           sourceChars: Array.isArray(data.sourceChars) ? data.sourceChars : [],
           difficulty: data.difficulty ?? "medium",
+          origin: data.origin ?? "ai",
           createdAt: data.createdAt ?? 0,
           stats: {
             reviewCount: data.stats?.reviewCount ?? 0,
@@ -58,7 +59,7 @@ const INITIAL_STATS: CharacterStats = {
 
 export async function addSentenceBatch(
   familyCode: string,
-  texts: string[],
+  entries: NewSentenceEntry[],
   sourceChars: string[],
   difficulty: SentenceDifficulty,
 ): Promise<void> {
@@ -66,12 +67,13 @@ export async function addSentenceBatch(
   const now = Date.now();
   const ref = familySentencesRef(familyCode);
 
-  for (const text of texts) {
+  for (const entry of entries) {
     const newDoc = doc(ref);
     batch.set(newDoc, {
-      text,
+      text: entry.text,
       sourceChars,
       difficulty,
+      origin: entry.origin,
       createdAt: now,
       stats: INITIAL_STATS,
     });
@@ -108,7 +110,10 @@ export async function updateSentenceText(
   text: string,
 ): Promise<void> {
   if (!db) throw new Error("Firestore is not configured");
-  await updateDoc(doc(db, "families", familyCode, "sentences", sentenceId), { text });
+  await updateDoc(doc(db, "families", familyCode, "sentences", sentenceId), {
+    text,
+    origin: "edited",
+  });
 }
 
 export async function deleteSentenceDoc(familyCode: string, sentenceId: string): Promise<void> {

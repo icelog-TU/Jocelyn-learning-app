@@ -69,10 +69,13 @@ interface RequestBody {
   difficulty?: unknown;
   count?: unknown;
   focusChars?: unknown;
+  referenceSentences?: unknown;
 }
 
 const MAX_TARGET_LENGTH = 6;
 const MAX_FOCUS_CHARS = 15;
+const MAX_REFERENCE_SENTENCES = 5;
+const MAX_REFERENCE_LENGTH = 30;
 
 function isHanChar(ch: string): boolean {
   return /\p{Script=Han}/u.test(ch);
@@ -125,6 +128,11 @@ export default {
           .filter((c) => c !== targetText)
           .slice(0, MAX_FOCUS_CHARS)
       : [];
+    const referenceSentences = Array.isArray(body.referenceSentences)
+      ? body.referenceSentences
+          .filter((s): s is string => typeof s === "string" && s.length > 0 && s.length <= MAX_REFERENCE_LENGTH)
+          .slice(0, MAX_REFERENCE_SENTENCES)
+      : [];
 
     if (knownChars.length === 0 || !targetText) {
       return jsonResponse({ sentences: [] }, 200, headers);
@@ -140,10 +148,18 @@ export default {
           `${focusChars.join(" ")}\n\n`
         : "";
 
+    const referenceHint =
+      referenceSentences.length > 0
+        ? `這位家長之前針對「${targetText}」寫過或修改過以下例句，家長認為這些例句比較自然道地，` +
+          `請參考這些例句的用字風格、詞語搭配方式來造句（不用照抄，也不用每句都模仿，但盡量學習類似的` +
+          `自然表達方式，避免出現跟這些例句風格差很多的生硬組合）：\n${referenceSentences.join("\n")}\n\n`
+        : "";
+
     const userPrompt =
       `允許用字清單（只能用這些字，不可以用清單以外的任何國字）：\n${allowedListText}\n\n` +
       `目標字或詞（每一句都必須完整包含這個字或詞，盡量跟其他允許用字組成有意義的詞語或句子）：${targetText}\n\n` +
       focusHint +
+      referenceHint +
       `句子長度要求：${DIFFICULTY_GUIDANCE[difficulty]}\n\n` +
       `請生成 ${count + GENERATION_BUFFER[difficulty]} 個句子，輸出 JSON：{"sentences": ["句子1", "句子2", ...]}`;
 

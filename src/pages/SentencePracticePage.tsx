@@ -6,11 +6,12 @@ import { generateSentences, isSentencePracticeConfigured } from "../lib/sentence
 import { saveSentenceBatch } from "../lib/store";
 import { SentencePracticeSession } from "../components/SentencePracticeSession";
 import { GenerateSentenceDialog } from "../components/GenerateSentenceDialog";
+import { SentenceDraftEditor, type DraftEntry } from "../components/SentenceDraftEditor";
 
 const SESSION_SIZE = 10;
 const GENERATE_COUNT = 5;
 
-type Phase = "idle" | "empty" | "generating" | "waiting-for-sync" | "ready" | "error";
+type Phase = "idle" | "empty" | "generating" | "drafting" | "waiting-for-sync" | "ready" | "error";
 
 interface Props {
   characters: CharacterDoc[];
@@ -19,6 +20,10 @@ interface Props {
   familyCode: string;
   weakChars: Set<string>;
   onToggleWeakChar: (char: string) => void;
+}
+
+function draftKey(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function SentencePracticePage({
@@ -34,6 +39,10 @@ export function SentencePracticePage({
   const [error, setError] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [prefillChar, setPrefillChar] = useState<string | undefined>(undefined);
+  const [drafts, setDrafts] = useState<DraftEntry[]>([]);
+  const [draftTarget, setDraftTarget] = useState<string | null>(null);
+  const [draftDifficulty, setDraftDifficulty] = useState<SentenceDifficulty>("medium");
+  const [savingDrafts, setSavingDrafts] = useState(false);
 
   const initializedRef = useRef(false);
   const generationMarkerRef = useRef(0);
@@ -54,30 +63,78 @@ export function SentencePracticePage({
     }
   }, [location.state]);
 
-  async function handleGenerate(targetText: string, difficulty: SentenceDifficulty) {
-    setShowDialog(false);
+  async function runGenerate(targetText: string, difficulty: SentenceDifficulty) {
     setPhase("generating");
     setError(null);
     try {
       const knownCharsList = [...knownChars];
+      const referenceSentences = sentences
+        .filter((s) => s.sourceChars[0] === targetText && (s.origin === "user" || s.origin === "edited"))
+        .map((s) => s.text)
+        .slice(0, 5);
       const newTexts = await generateSentences(
         knownCharsList,
         targetText,
         difficulty,
         GENERATE_COUNT,
         [...weakChars],
+        referenceSentences,
       );
       if (newTexts.length === 0) {
-        setPhase("error");
-        setError(`這次沒有生成出用到「${targetText}」的合適句子，換一個字再試試看！`);
+        setPhase("drafting");
+        setError(`這次沒有生成出用到「${targetText}」的合適句子，可以再試一次，或是自己寫句子！`);
         return;
       }
-      generationMarkerRef.current = Date.now();
-      await saveSentenceBatch(familyCode, newTexts, [targetText], difficulty);
-      setPhase("waiting-for-sync");
+      const aiDrafts: DraftEntry[] = newTexts.map((text) => ({ key: draftKey(), text, origin: "ai" }));
+      setDrafts((prev) => [...prev.filter((d) => d.origin !== "ai"), ...aiDrafts]);
+      setPhase("drafting");
     } catch (err) {
-      setPhase("error");
+      setPhase("drafting");
       setError(err instanceof Error ? err.message : "發生錯誤，請稍後再試一次");
+    }
+  }
+
+  function handleGenerateFromDialog(targetText: string, difficulty: SentenceDifficulty) {
+    setShowDialog(false);
+    setDrafts([]);
+    setDraftTarget(targetText);
+    setDraftDifficulty(difficulty);
+    runGenerate(targetText, difficulty);
+  }
+
+  function handleRegenerate() {
+    if (!draftTarget) return;
+    runGenerate(draftTarget, draftDifficulty);
+  }
+
+  function handleUpdateDraftText(key: string, text: string) {
+    setDrafts((prev) =>
+      prev.map((d) => (d.key === key ? { ...d, text, origin: d.origin === "ai" ? "edited" : d.origin } : d)),
+    );
+  }
+
+  function handleRemoveDraft(key: string) {
+    setDrafts((prev) => prev.filter((d) => d.key !== key));
+  }
+
+  function handleAddDraft(text: string) {
+    setDrafts((prev) => [...prev, { key: draftKey(), text, origin: "user" }]);
+  }
+
+  async function handleConfirmDrafts() {
+    if (!draftTarget || drafts.length === 0) return;
+    setSavingDrafts(true);
+    try {
+      generationMarkerRef.current = Date.now();
+      await saveSentenceBatch(
+        familyCode,
+        drafts.map((d) => ({ text: d.text, origin: d.origin })),
+        [draftTarget],
+        draftDifficulty,
+      );
+      setPhase("waiting-for-sync");
+    } finally {
+      setSavingDrafts(false);
     }
   }
 
@@ -95,8 +152,8 @@ export function SentencePracticePage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sentencesLoading, sentences]);
 
-  // After saving a freshly-generated batch, wait for the subscription to
-  // reflect it (with real IDs) before starting the session.
+  // After confirming drafts, wait for the subscription to reflect the saved
+  // batch (with real IDs) before starting the session.
   useEffect(() => {
     if (phase !== "waiting-for-sync") return;
     const fresh = sentences.filter((s) => s.createdAt >= generationMarkerRef.current);
@@ -107,6 +164,11 @@ export function SentencePracticePage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, sentences]);
 
+  function openDialog() {
+    setPrefillChar(undefined);
+    setShowDialog(true);
+  }
+
   const dialog = showDialog && (
     <GenerateSentenceDialog
       knownChars={knownChars}
@@ -114,7 +176,7 @@ export function SentencePracticePage({
         setShowDialog(false);
         setPrefillChar(undefined);
       }}
-      onConfirm={handleGenerate}
+      onConfirm={handleGenerateFromDialog}
       initialChar={prefillChar}
     />
   );
@@ -144,24 +206,20 @@ export function SentencePracticePage({
     );
   }
 
-  if (phase === "error") {
+  if (phase === "drafting") {
     return (
       <div className="screen">
-        <h1 className="page-title">AI 句子練習</h1>
-        <div className="card">
-          <p style={{ color: "var(--color-danger)" }}>{error}</p>
-          <button
-            className="btn btn-primary btn-block"
-            style={{ marginTop: 12 }}
-            onClick={() => {
-              setPrefillChar(undefined);
-              setShowDialog(true);
-            }}
-          >
-            重試一次
-          </button>
-        </div>
-        {dialog}
+        <h1 className="page-title">練習「{draftTarget}」的句子</h1>
+        {error && <p style={{ color: "var(--color-danger)", fontSize: "0.9rem" }}>{error}</p>}
+        <SentenceDraftEditor
+          drafts={drafts}
+          onUpdateText={handleUpdateDraftText}
+          onRemove={handleRemoveDraft}
+          onAdd={handleAddDraft}
+          onConfirm={handleConfirmDrafts}
+          onRegenerate={handleRegenerate}
+          saving={savingDrafts}
+        />
       </div>
     );
   }
@@ -171,15 +229,8 @@ export function SentencePracticePage({
       <div className="screen">
         <h1 className="page-title">AI 句子練習</h1>
         <div className="empty-state card">
-          <p>還沒有句子喔！挑一個她學過的字或詞彙，讓 AI 圍繞它造 5 句話練習。</p>
-          <button
-            className="btn btn-primary btn-block"
-            style={{ marginTop: 12 }}
-            onClick={() => {
-              setPrefillChar(undefined);
-              setShowDialog(true);
-            }}
-          >
+          <p>還沒有句子喔！挑一個她學過的字或詞彙，讓 AI 圍繞它造 5 句話練習，或是自己寫句子。</p>
+          <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={openDialog}>
             🪄 產生新句子
           </button>
         </div>
@@ -214,14 +265,7 @@ export function SentencePracticePage({
               <Link to="/" className="btn btn-outline" style={{ flex: 1 }}>
                 回首頁
               </Link>
-              <button
-                className="btn btn-primary"
-                style={{ flex: 1 }}
-                onClick={() => {
-              setPrefillChar(undefined);
-              setShowDialog(true);
-            }}
-              >
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={openDialog}>
                 🪄 產生新句子
               </button>
             </div>
@@ -248,10 +292,7 @@ export function SentencePracticePage({
             }}
           >
             <button
-              onClick={() => {
-              setPrefillChar(undefined);
-              setShowDialog(true);
-            }}
+              onClick={openDialog}
               style={{
                 background: "none",
                 border: "none",
