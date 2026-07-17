@@ -102,3 +102,11 @@ export async function deleteSentenceLocal(familyCode: string, sentenceId: string
     existing.filter((s) => s.id !== sentenceId),
   );
 }
+
+export async function resetAllSentenceStatsLocal(familyCode: string): Promise<void> {
+  const existing = readAll(familyCode);
+  writeAll(
+    familyCode,
+    existing.map((s) => ({ ...s, stats: INITIAL_STATS })),
+  );
+}

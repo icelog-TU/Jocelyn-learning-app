@@ -1,4 +1,4 @@
-import { addDoc, collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, getDocs, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "./firebase";
 import type { CollectedPrizeDoc, CreatureVariant } from "../types";
 
@@ -38,4 +38,10 @@ export async function addPrize(
 ): Promise<void> {
   if (!db) throw new Error("Firestore is not configured");
   await addDoc(familyPrizesRef(familyCode), { speciesId, variant, obtainedAt: Date.now() });
+}
+
+export async function clearAllPrizes(familyCode: string): Promise<void> {
+  if (!db) throw new Error("Firestore is not configured");
+  const snapshot = await getDocs(familyPrizesRef(familyCode));
+  await Promise.all(snapshot.docs.map((docSnap) => deleteDoc(docSnap.ref)));
 }

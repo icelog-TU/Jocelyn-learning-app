@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -119,4 +120,17 @@ export async function updateSentenceText(
 export async function deleteSentenceDoc(familyCode: string, sentenceId: string): Promise<void> {
   if (!db) throw new Error("Firestore is not configured");
   await deleteDoc(doc(db, "families", familyCode, "sentences", sentenceId));
+}
+
+/** Resets every sentence's review progress (and therefore its star
+ * contribution) without deleting the sentence itself. Used for wiping test
+ * data while keeping the saved sentence bank intact. */
+export async function resetAllSentenceStats(familyCode: string): Promise<void> {
+  if (!db) throw new Error("Firestore is not configured");
+  const snapshot = await getDocs(familySentencesRef(familyCode));
+  const batch = writeBatch(db);
+  for (const docSnap of snapshot.docs) {
+    batch.update(docSnap.ref, { stats: INITIAL_STATS });
+  }
+  await batch.commit();
 }

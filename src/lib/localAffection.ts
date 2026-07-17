@@ -39,6 +39,10 @@ export function subscribeAffectionLocal(
   };
 }
 
+export async function clearAllAffectionLocal(familyCode: string): Promise<void> {
+  writeAll(familyCode, []);
+}
+
 export async function giftToCreatureLocal(
   familyCode: string,
   speciesId: string,

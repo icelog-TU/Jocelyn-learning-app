@@ -1,10 +1,16 @@
 import { isFirebaseConfigured } from "./firebase";
-import { addCharacterBatch, deleteCharacterDoc, subscribeCharacters } from "./characters";
-import { addCharacterBatchLocal, deleteCharacterLocal, subscribeCharactersLocal } from "./localStore";
+import { addCharacterBatch, deleteCharacterDoc, resetAllCharacterStats, subscribeCharacters } from "./characters";
+import {
+  addCharacterBatchLocal,
+  deleteCharacterLocal,
+  resetAllCharacterStatsLocal,
+  subscribeCharactersLocal,
+} from "./localStore";
 import {
   addSentenceBatch,
   deleteSentenceDoc,
   recordSentenceReviewResult,
+  resetAllSentenceStats,
   subscribeSentences,
   updateSentenceText,
 } from "./sentences";
@@ -12,15 +18,16 @@ import {
   addSentenceBatchLocal,
   deleteSentenceLocal,
   recordSentenceReviewResultLocal,
+  resetAllSentenceStatsLocal,
   subscribeSentencesLocal,
   updateSentenceTextLocal,
 } from "./localSentences";
 import { addWeakChar, removeWeakChar, subscribeWeakChars } from "./weakChars";
 import { addWeakCharLocal, removeWeakCharLocal, subscribeWeakCharsLocal } from "./localWeakChars";
-import { addPrize, subscribePrizes } from "./prizes";
-import { addPrizeLocal, subscribePrizesLocal } from "./localPrizes";
-import { giftToCreature, subscribeAffection } from "./affection";
-import { giftToCreatureLocal, subscribeAffectionLocal } from "./localAffection";
+import { addPrize, clearAllPrizes, subscribePrizes } from "./prizes";
+import { addPrizeLocal, clearAllPrizesLocal, subscribePrizesLocal } from "./localPrizes";
+import { clearAllAffection, giftToCreature, subscribeAffection } from "./affection";
+import { clearAllAffectionLocal, giftToCreatureLocal, subscribeAffectionLocal } from "./localAffection";
 import type {
   AffectionDoc,
   CharacterDoc,
@@ -174,4 +181,28 @@ export function giveGiftToCreature(
   return isFirebaseConfigured
     ? giftToCreature(familyCode, speciesId, variant, hearts, starsCost)
     : giftToCreatureLocal(familyCode, speciesId, variant, hearts, starsCost);
+}
+
+/** Wipes all test/practice progress for a family: every character and
+ * sentence's stars go back to zero (the character/sentence entries
+ * themselves are kept), and the whole gacha collection (prizes + affection)
+ * is cleared. Intentionally not exposed anywhere in the normal navigation —
+ * only reachable via the hidden /reset-test-data route — so a child can't
+ * stumble into wiping progress by tapping around the app. */
+export async function resetAllProgress(familyCode: string): Promise<void> {
+  if (isFirebaseConfigured) {
+    await Promise.all([
+      resetAllCharacterStats(familyCode),
+      resetAllSentenceStats(familyCode),
+      clearAllPrizes(familyCode),
+      clearAllAffection(familyCode),
+    ]);
+  } else {
+    await Promise.all([
+      resetAllCharacterStatsLocal(familyCode),
+      resetAllSentenceStatsLocal(familyCode),
+      clearAllPrizesLocal(familyCode),
+      clearAllAffectionLocal(familyCode),
+    ]);
+  }
 }

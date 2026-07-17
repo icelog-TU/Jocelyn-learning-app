@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -90,4 +91,19 @@ export async function addCharacterBatch(
 export async function deleteCharacterDoc(familyCode: string, characterId: string): Promise<void> {
   if (!db) throw new Error("Firestore is not configured");
   await deleteDoc(doc(db, "families", familyCode, "characters", characterId));
+}
+
+/** Resets every character's review progress (and therefore its star
+ * contribution) back to a freshly-added state, without deleting the
+ * character itself. Used for wiping test data while keeping the learned
+ * vocabulary list intact. */
+export async function resetAllCharacterStats(familyCode: string): Promise<void> {
+  if (!db) throw new Error("Firestore is not configured");
+  const snapshot = await getDocs(familyCharactersRef(familyCode));
+  const resetStats: CharacterStats = { reviewCount: 0, correctCount: 0, box: 1, lastReviewedAt: null };
+  const batch = writeBatch(db);
+  for (const docSnap of snapshot.docs) {
+    batch.update(docSnap.ref, { stats: resetStats });
+  }
+  await batch.commit();
 }

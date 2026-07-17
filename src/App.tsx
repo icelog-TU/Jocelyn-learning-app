@@ -14,6 +14,7 @@ import { SentenceManagePage } from "./pages/SentenceManagePage";
 import { BatchPracticePage } from "./pages/BatchPracticePage";
 import { GachaPage } from "./pages/GachaPage";
 import { CreatureDetailPage } from "./pages/CreatureDetailPage";
+import { ResetTestDataPage } from "./pages/ResetTestDataPage";
 import { NavBar } from "./components/NavBar";
 import { saveWeakChar, removeWeakCharEntry } from "./lib/store";
 
@@ -154,6 +155,18 @@ function App() {
               sentences={sentences}
               prizes={prizes}
               affection={affection}
+              familyCode={familyCode}
+            />
+          }
+        />
+        {/* Intentionally not linked from any nav item or button — see ResetTestDataPage for why. */}
+        <Route
+          path="/reset-test-data"
+          element={
+            <ResetTestDataPage
+              characters={characters}
+              sentences={sentences}
+              prizes={prizes}
               familyCode={familyCode}
             />
           }

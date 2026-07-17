@@ -76,3 +76,12 @@ export async function deleteCharacterLocal(familyCode: string, characterId: stri
     existing.filter((c) => c.id !== characterId),
   );
 }
+
+export async function resetAllCharacterStatsLocal(familyCode: string): Promise<void> {
+  const resetStats: CharacterStats = { reviewCount: 0, correctCount: 0, box: 1, lastReviewedAt: null };
+  const existing = readAll(familyCode);
+  writeAll(
+    familyCode,
+    existing.map((c) => ({ ...c, stats: resetStats })),
+  );
+}

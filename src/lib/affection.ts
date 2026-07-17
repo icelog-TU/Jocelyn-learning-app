@@ -1,4 +1,4 @@
-import { collection, doc, increment, onSnapshot, setDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, increment, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import { prizeKey } from "./gachaCatalog";
 import type { AffectionDoc, CreatureVariant } from "../types";
@@ -47,4 +47,10 @@ export async function giftToCreature(
     { speciesId, variant, hearts: increment(hearts), starsSpent: increment(starsCost), updatedAt: Date.now() },
     { merge: true },
   );
+}
+
+export async function clearAllAffection(familyCode: string): Promise<void> {
+  if (!db) throw new Error("Firestore is not configured");
+  const snapshot = await getDocs(familyAffectionRef(familyCode));
+  await Promise.all(snapshot.docs.map((docSnap) => deleteDoc(docSnap.ref)));
 }

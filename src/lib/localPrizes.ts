@@ -41,6 +41,10 @@ export function subscribePrizesLocal(
   };
 }
 
+export async function clearAllPrizesLocal(familyCode: string): Promise<void> {
+  writeAll(familyCode, []);
+}
+
 export async function addPrizeLocal(
   familyCode: string,
   speciesId: string,
