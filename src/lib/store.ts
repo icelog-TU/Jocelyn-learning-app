@@ -12,6 +12,7 @@ import {
   recordSentenceReviewResult,
   resetAllSentenceStats,
   subscribeSentences,
+  updateSentenceDifficulty,
   updateSentenceText,
 } from "./sentences";
 import {
@@ -20,6 +21,7 @@ import {
   recordSentenceReviewResultLocal,
   resetAllSentenceStatsLocal,
   subscribeSentencesLocal,
+  updateSentenceDifficultyLocal,
   updateSentenceTextLocal,
 } from "./localSentences";
 import { addWeakChar, removeWeakChar, subscribeWeakChars } from "./weakChars";
@@ -108,6 +110,16 @@ export function editSentenceText(
   return isFirebaseConfigured
     ? updateSentenceText(familyCode, sentenceId, text)
     : updateSentenceTextLocal(familyCode, sentenceId, text);
+}
+
+export function editSentenceDifficulty(
+  familyCode: string,
+  sentenceId: string,
+  difficulty: SentenceDifficulty,
+): Promise<void> {
+  return isFirebaseConfigured
+    ? updateSentenceDifficulty(familyCode, sentenceId, difficulty)
+    : updateSentenceDifficultyLocal(familyCode, sentenceId, difficulty);
 }
 
 export function removeSentence(familyCode: string, sentenceId: string): Promise<void> {

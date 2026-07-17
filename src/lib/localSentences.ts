@@ -101,6 +101,16 @@ export async function updateSentenceTextLocal(
   writeAll(familyCode, updated);
 }
 
+export async function updateSentenceDifficultyLocal(
+  familyCode: string,
+  sentenceId: string,
+  difficulty: SentenceDifficulty,
+): Promise<void> {
+  const existing = readAll(familyCode);
+  const updated = existing.map((s) => (s.id === sentenceId ? { ...s, difficulty } : s));
+  writeAll(familyCode, updated);
+}
+
 export async function deleteSentenceLocal(familyCode: string, sentenceId: string): Promise<void> {
   const existing = readAll(familyCode);
   writeAll(

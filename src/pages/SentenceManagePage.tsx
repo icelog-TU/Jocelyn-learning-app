@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { SentenceDoc, SentenceOrigin } from "../types";
-import { editSentenceText, removeSentence } from "../lib/store";
-import { DIFFICULTY_LABELS } from "../lib/sentencePractice";
+import type { SentenceDoc, SentenceDifficulty, SentenceOrigin } from "../types";
+import { editSentenceDifficulty, editSentenceText, removeSentence } from "../lib/store";
+import { DIFFICULTY_LABELS, DIFFICULTY_ORDER } from "../lib/sentencePractice";
 
 const ORIGIN_LABELS: Record<SentenceOrigin, string> = {
   ai: "AI",
@@ -79,7 +79,19 @@ export function SentenceManagePage({ sentences, familyCode }: Props) {
               <p style={{ fontSize: "1.3rem", margin: "0 0 10px" }}>{s.text}</p>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 {s.sourceChars[0] && <span className="pill">衍生自「{s.sourceChars[0]}」</span>}
-                <span className="pill">{DIFFICULTY_LABELS[s.difficulty ?? "medium"]}</span>
+                <select
+                  value={s.difficulty ?? "medium"}
+                  onChange={(e) => editSentenceDifficulty(familyCode, s.id, e.target.value as SentenceDifficulty)}
+                  aria-label="修改難度"
+                  className="pill"
+                  style={{ border: "none", cursor: "pointer", font: "inherit" }}
+                >
+                  {DIFFICULTY_ORDER.map((d) => (
+                    <option key={d} value={d}>
+                      {DIFFICULTY_LABELS[d]}
+                    </option>
+                  ))}
+                </select>
                 <span className="pill">{ORIGIN_LABELS[s.origin ?? "ai"]}</span>
                 <span className="pill">{"★".repeat(Math.min(s.stats.box, 5))}</span>
                 <div style={{ flex: 1 }} />

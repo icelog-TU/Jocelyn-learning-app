@@ -8,6 +8,8 @@ export const DIFFICULTY_LABELS: Record<SentenceDifficulty, string> = {
   hard: "困難",
 };
 
+export const DIFFICULTY_ORDER: SentenceDifficulty[] = ["easy", "medium", "hard"];
+
 const STARS_BY_DIFFICULTY: Record<SentenceDifficulty, number> = {
   easy: 2,
   medium: 3,

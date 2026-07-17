@@ -117,6 +117,15 @@ export async function updateSentenceText(
   });
 }
 
+export async function updateSentenceDifficulty(
+  familyCode: string,
+  sentenceId: string,
+  difficulty: SentenceDifficulty,
+): Promise<void> {
+  if (!db) throw new Error("Firestore is not configured");
+  await updateDoc(doc(db, "families", familyCode, "sentences", sentenceId), { difficulty });
+}
+
 export async function deleteSentenceDoc(familyCode: string, sentenceId: string): Promise<void> {
   if (!db) throw new Error("Firestore is not configured");
   await deleteDoc(doc(db, "families", familyCode, "sentences", sentenceId));

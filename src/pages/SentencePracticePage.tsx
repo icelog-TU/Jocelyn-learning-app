@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { CharacterDoc, SentenceDifficulty, SentenceDoc } from "../types";
 import { pickReviewSession } from "../lib/review";
-import { generateSentences, isSentencePracticeConfigured } from "../lib/sentencePractice";
+import {
+  DIFFICULTY_LABELS,
+  DIFFICULTY_ORDER,
+  generateSentences,
+  isSentencePracticeConfigured,
+} from "../lib/sentencePractice";
 import { saveSentenceBatch } from "../lib/store";
 import { SentencePracticeSession } from "../components/SentencePracticeSession";
 import { GenerateSentenceDialog } from "../components/GenerateSentenceDialog";
@@ -11,7 +16,15 @@ import { SentenceDraftEditor, type DraftEntry } from "../components/SentenceDraf
 const SESSION_SIZE = 10;
 const GENERATE_COUNT = 5;
 
-type Phase = "idle" | "empty" | "generating" | "drafting" | "waiting-for-sync" | "ready" | "error";
+type Phase =
+  | "idle"
+  | "empty"
+  | "mode-select"
+  | "generating"
+  | "drafting"
+  | "waiting-for-sync"
+  | "ready"
+  | "error";
 
 interface Props {
   characters: CharacterDoc[];
@@ -37,6 +50,8 @@ export function SentencePracticePage({
   const [phase, setPhase] = useState<Phase>("idle");
   const [session, setSession] = useState<SentenceDoc[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [modeError, setModeError] = useState<string | null>(null);
+  const [charFilterInput, setCharFilterInput] = useState("");
   const [showDialog, setShowDialog] = useState(false);
   const [prefillChar, setPrefillChar] = useState<string | undefined>(undefined);
   const [drafts, setDrafts] = useState<DraftEntry[]>([]);
@@ -143,14 +158,42 @@ export function SentencePracticePage({
   useEffect(() => {
     if (sentencesLoading || initializedRef.current || !isSentencePracticeConfigured) return;
     initializedRef.current = true;
-    if (sentences.length === 0) {
-      setPhase("empty");
-    } else {
-      setSession(pickReviewSession(sentences, SESSION_SIZE));
-      setPhase("ready");
-    }
+    setPhase(sentences.length === 0 ? "empty" : "mode-select");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sentencesLoading, sentences]);
+
+  function startSessionFromPool(pool: SentenceDoc[]) {
+    if (pool.length === 0) {
+      setModeError("找不到符合條件的句子，換一個試試看？");
+      return;
+    }
+    setModeError(null);
+    setSession(pickReviewSession(pool, SESSION_SIZE));
+    setPhase("ready");
+  }
+
+  function startRandomReview() {
+    startSessionFromPool(sentences);
+  }
+
+  function startDifficultyReview(difficulty: SentenceDifficulty) {
+    startSessionFromPool(sentences.filter((s) => (s.difficulty ?? "medium") === difficulty));
+  }
+
+  function startCharReview() {
+    const char = charFilterInput.trim();
+    if (!char) return;
+    // Intentionally matches the character anywhere in the sentence text, not
+    // just sentences generated from it as a target — a "光" sentence
+    // generated from a different target character still counts.
+    startSessionFromPool(sentences.filter((s) => s.text.includes(char)));
+  }
+
+  function backToModeSelect() {
+    setModeError(null);
+    setCharFilterInput("");
+    setPhase("mode-select");
+  }
 
   // After confirming drafts, wait for the subscription to reflect the saved
   // batch (with real IDs) before starting the session.
@@ -239,6 +282,81 @@ export function SentencePracticePage({
     );
   }
 
+  if (phase === "mode-select") {
+    return (
+      <div className="screen">
+        <h1 className="page-title">AI 句子練習</h1>
+
+        <div className="card" style={{ marginBottom: 16 }}>
+          <p style={{ fontWeight: 700, margin: "0 0 8px" }}>🎲 隨機複習</p>
+          <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", margin: "0 0 12px" }}>
+            從所有句子裡，優先挑到期該複習的句子。
+          </p>
+          <button className="btn btn-primary btn-block" onClick={startRandomReview}>
+            開始隨機複習
+          </button>
+        </div>
+
+        <div className="card" style={{ marginBottom: 16 }}>
+          <p style={{ fontWeight: 700, margin: "0 0 8px" }}>🎯 挑難度複習</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            {DIFFICULTY_ORDER.map((d) => (
+              <button
+                key={d}
+                className="btn btn-outline"
+                style={{ flex: 1 }}
+                onClick={() => startDifficultyReview(d)}
+              >
+                {DIFFICULTY_LABELS[d]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="card" style={{ marginBottom: 16 }}>
+          <p style={{ fontWeight: 700, margin: "0 0 6px" }}>🔤 挑字複習</p>
+          <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", margin: "0 0 12px" }}>
+            輸入一個字，找出所有含有這個字的句子（不限造句時的目標字，句子裡任何地方出現這個字都算）。
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={charFilterInput}
+              onChange={(e) => setCharFilterInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") startCharReview();
+              }}
+              placeholder="輸入一個字"
+              style={{ flex: 1 }}
+            />
+            <button className="btn btn-secondary" onClick={startCharReview}>
+              開始
+            </button>
+          </div>
+        </div>
+
+        {modeError && (
+          <p style={{ color: "var(--color-danger)", fontSize: "0.9rem", marginTop: -8 }}>{modeError}</p>
+        )}
+
+        <button
+          onClick={openDialog}
+          style={{
+            background: "none",
+            border: "none",
+            fontSize: "0.85rem",
+            color: "var(--color-text-muted)",
+            textDecoration: "underline",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          產生新句子
+        </button>
+        {dialog}
+      </div>
+    );
+  }
+
   if (phase === "idle" || phase === "generating" || phase === "waiting-for-sync") {
     return (
       <div className="screen">
@@ -261,7 +379,10 @@ export function SentencePracticePage({
         onToggleWeakChar={onToggleWeakChar}
         completionActions={
           <>
-            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button className="btn btn-secondary btn-block" style={{ marginTop: 16 }} onClick={backToModeSelect}>
+              🔁 換個複習模式
+            </button>
+            <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
               <Link to="/" className="btn btn-outline" style={{ flex: 1 }}>
                 回首頁
               </Link>
