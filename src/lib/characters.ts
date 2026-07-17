@@ -1,13 +1,4 @@
-import {
-  collection,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  runTransaction,
-  serverTimestamp,
-  writeBatch,
-} from "firebase/firestore";
+import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from "./firebase";
 import type { CharacterDoc, CharacterStats, NewCharacterInput } from "../types";
 
@@ -58,7 +49,6 @@ export function subscribeCharacters(
 export async function addCharacterBatch(
   familyCode: string,
   characters: NewCharacterInput[],
-  bookTitle: string,
 ): Promise<void> {
   const batch = writeBatch(db!);
   const now = Date.now();
@@ -77,7 +67,7 @@ export async function addCharacterBatch(
     batch.set(newDoc, {
       hanzi: char.hanzi,
       zhuyin: char.zhuyin,
-      bookTitle: bookTitle.trim(),
+      bookTitle: "",
       addedAt: now,
       addedDateKey: todayKey,
       stats: initialStats,
@@ -86,30 +76,4 @@ export async function addCharacterBatch(
   }
 
   await batch.commit();
-}
-
-const MAX_BOX = 5;
-
-export async function recordReviewResult(
-  familyCode: string,
-  charId: string,
-  correct: boolean,
-): Promise<void> {
-  if (!db) throw new Error("Firestore is not configured");
-  const ref = doc(db, "families", familyCode, "characters", charId);
-
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists()) return;
-    const data = snap.data();
-    const stats: CharacterStats = {
-      reviewCount: (data.stats?.reviewCount ?? 0) + 1,
-      correctCount: (data.stats?.correctCount ?? 0) + (correct ? 1 : 0),
-      box: correct
-        ? Math.min((data.stats?.box ?? 1) + 1, MAX_BOX)
-        : 1,
-      lastReviewedAt: Date.now(),
-    };
-    tx.update(ref, { stats });
-  });
 }

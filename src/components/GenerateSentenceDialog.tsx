@@ -5,10 +5,11 @@ import { DIFFICULTY_LABELS } from "../lib/sentencePractice";
 interface Props {
   knownChars: Set<string>;
   onCancel: () => void;
-  onConfirm: (targetChar: string, difficulty: SentenceDifficulty) => void;
+  onConfirm: (targetText: string, difficulty: SentenceDifficulty) => void;
 }
 
 const DIFFICULTY_OPTIONS: SentenceDifficulty[] = ["easy", "medium", "hard"];
+const MAX_TARGET_LENGTH = 6;
 
 export function GenerateSentenceDialog({ knownChars, onCancel, onConfirm }: Props) {
   const [charInput, setCharInput] = useState("");
@@ -17,12 +18,14 @@ export function GenerateSentenceDialog({ knownChars, onCancel, onConfirm }: Prop
 
   function handleSubmit() {
     const trimmed = charInput.trim();
-    if ([...trimmed].length !== 1) {
-      setError("請只輸入一個漢字喔");
+    const chars = [...trimmed];
+    if (chars.length === 0 || chars.length > MAX_TARGET_LENGTH) {
+      setError(`請輸入 1 到 ${MAX_TARGET_LENGTH} 個字的漢字或詞彙`);
       return;
     }
-    if (!knownChars.has(trimmed)) {
-      setError(`「${trimmed}」還沒有學過，請先在「新增漢字」加入這個字`);
+    const unknown = chars.find((c) => !knownChars.has(c));
+    if (unknown) {
+      setError(`「${unknown}」還沒有學過，請先在「新增」加入這個字`);
       return;
     }
     onConfirm(trimmed, difficulty);
@@ -49,18 +52,18 @@ export function GenerateSentenceDialog({ knownChars, onCancel, onConfirm }: Prop
       >
         <h2 style={{ margin: "0 0 4px", fontSize: "1.2rem" }}>產生新句子</h2>
         <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", marginTop: 0 }}>
-          要練習哪個漢字？請輸入一個她已經學過的字。
+          要練習哪個漢字或詞彙？請輸入她已經學過的字。
         </p>
 
         <div className="field">
-          <label>目標漢字</label>
+          <label>目標漢字／詞彙</label>
           <input
             value={charInput}
             onChange={(e) => {
               setCharInput(e.target.value);
               setError(null);
             }}
-            placeholder="例如：學"
+            placeholder="例如：學 或 毛毛蟲"
             autoFocus
             style={{ fontSize: "1.4rem", textAlign: "center" }}
           />

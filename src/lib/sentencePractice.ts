@@ -23,7 +23,7 @@ export function starsForDifficulty(difficulty: SentenceDifficulty | undefined): 
 
 export async function generateSentences(
   knownChars: string[],
-  targetChar: string,
+  targetText: string,
   difficulty: SentenceDifficulty,
   count: number,
 ): Promise<string[]> {
@@ -35,7 +35,7 @@ export async function generateSentences(
   const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ knownChars, targetChar, difficulty, count }),
+    body: JSON.stringify({ knownChars, targetText, difficulty, count }),
   });
 
   if (!res.ok) {

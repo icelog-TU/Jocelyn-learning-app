@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { CharacterDoc, SentenceDoc } from "../types";
 import { dateKey } from "../lib/characters";
 import { DIFFICULTY_LABELS } from "../lib/sentencePractice";
@@ -14,9 +15,16 @@ interface CharDayGroup {
   chars: CharacterDoc[];
 }
 
+interface SentenceBatch {
+  key: string;
+  createdAt: number;
+  sourceChars: string[];
+  sentences: SentenceDoc[];
+}
+
 interface SentenceDayGroup {
   dateKey: string;
-  sentences: SentenceDoc[];
+  batches: SentenceBatch[];
 }
 
 function groupCharsByDate(characters: CharacterDoc[]): CharDayGroup[] {
@@ -36,17 +44,31 @@ function groupCharsByDate(characters: CharacterDoc[]): CharDayGroup[] {
 }
 
 function groupSentencesByDate(sentences: SentenceDoc[]): SentenceDayGroup[] {
-  const map = new Map<string, SentenceDayGroup>();
+  const batchMap = new Map<string, SentenceBatch>();
   for (const s of sentences) {
-    const key = dateKey(new Date(s.createdAt));
-    let group = map.get(key);
-    if (!group) {
-      group = { dateKey: key, sentences: [] };
-      map.set(key, group);
+    const batchKey = `${s.createdAt}|${s.sourceChars.join(",")}`;
+    let batch = batchMap.get(batchKey);
+    if (!batch) {
+      batch = { key: batchKey, createdAt: s.createdAt, sourceChars: s.sourceChars, sentences: [] };
+      batchMap.set(batchKey, batch);
     }
-    group.sentences.push(s);
+    batch.sentences.push(s);
   }
-  return Array.from(map.values()).sort((a, b) => (a.dateKey < b.dateKey ? 1 : -1));
+
+  const dayMap = new Map<string, SentenceDayGroup>();
+  for (const batch of batchMap.values()) {
+    const key = dateKey(new Date(batch.createdAt));
+    let group = dayMap.get(key);
+    if (!group) {
+      group = { dateKey: key, batches: [] };
+      dayMap.set(key, group);
+    }
+    group.batches.push(batch);
+  }
+  for (const group of dayMap.values()) {
+    group.batches.sort((a, b) => b.createdAt - a.createdAt);
+  }
+  return Array.from(dayMap.values()).sort((a, b) => (a.dateKey < b.dateKey ? 1 : -1));
 }
 
 function formatDate(key: string): string {
@@ -143,57 +165,91 @@ function CharacterHistory({ characters }: { characters: CharacterDoc[] }) {
 }
 
 function SentenceHistory({ sentences }: { sentences: SentenceDoc[] }) {
+  const navigate = useNavigate();
   const groups = groupSentencesByDate(sentences);
 
   if (groups.length === 0) {
-    return <div className="empty-state card">還沒有句子紀錄，去「造句」頁面讓 AI 生成第一批吧！</div>;
+    return <div className="empty-state card">還沒有句子紀錄，去「新增」加一個字讓 AI 生成第一批吧！</div>;
+  }
+
+  function practiceBatch(batch: SentenceBatch) {
+    navigate("/sentences/batch", { state: { ids: batch.sentences.map((s) => s.id) } });
   }
 
   return (
     <>
-      {groups.map((group) => (
-        <div className="card" key={group.dateKey} style={{ marginBottom: 14 }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "baseline",
-              marginBottom: 10,
-            }}
-          >
-            <strong>{formatDate(group.dateKey)}</strong>
-            <span className="pill">{group.sentences.length} 句</span>
-          </div>
-          {group.sentences.map((s) => (
+      {groups.map((group) => {
+        const totalSentences = group.batches.reduce((sum, b) => sum + b.sentences.length, 0);
+        return (
+          <div className="card" key={group.dateKey} style={{ marginBottom: 14 }}>
             <div
-              key={s.id}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "center",
-                gap: 10,
-                padding: "8px 0",
-                borderBottom: "1px solid #f1e6d8",
+                alignItems: "baseline",
+                marginBottom: 10,
               }}
             >
-              <span style={{ fontSize: "1.05rem" }}>{s.text}</span>
-              <span style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                {s.sourceChars[0] && (
-                  <span className="pill" style={{ fontSize: "0.75rem" }}>
-                    衍生自「{s.sourceChars[0]}」
-                  </span>
-                )}
-                <span className="pill" style={{ fontSize: "0.75rem" }}>
-                  {DIFFICULTY_LABELS[s.difficulty ?? "medium"]}
-                </span>
-                <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
-                  {"★".repeat(Math.min(s.stats.box, 5))}
-                </span>
-              </span>
+              <strong>{formatDate(group.dateKey)}</strong>
+              <span className="pill">{totalSentences} 句</span>
             </div>
-          ))}
-        </div>
-      ))}
+            {group.batches.map((batch) => (
+              <div
+                key={batch.key}
+                style={{
+                  padding: "10px 0",
+                  borderBottom: "1px solid #f1e6d8",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <span style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    {batch.sourceChars[0] && (
+                      <span className="pill" style={{ fontSize: "0.75rem" }}>
+                        衍生自「{batch.sourceChars[0]}」
+                      </span>
+                    )}
+                    <span className="pill" style={{ fontSize: "0.75rem" }}>
+                      {DIFFICULTY_LABELS[batch.sentences[0]?.difficulty ?? "medium"]}
+                    </span>
+                  </span>
+                  <button
+                    className="btn btn-outline"
+                    style={{ fontSize: "0.8rem", padding: "6px 12px" }}
+                    onClick={() => practiceBatch(batch)}
+                  >
+                    🔁 練習這批
+                  </button>
+                </div>
+                {batch.sentences.map((s) => (
+                  <div
+                    key={s.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "4px 0",
+                    }}
+                  >
+                    <span style={{ fontSize: "1.05rem" }}>{s.text}</span>
+                    <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", flexShrink: 0 }}>
+                      {"★".repeat(Math.min(s.stats.box, 5))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </>
   );
 }

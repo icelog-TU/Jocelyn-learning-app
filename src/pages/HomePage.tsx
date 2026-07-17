@@ -27,14 +27,14 @@ export function HomePage({
     characters.reduce((sum, c) => sum + c.stats.correctCount, 0) + sentenceStars;
   const todayKey = dateKey();
   const addedToday = characters.filter((c) => c.addedDateKey === todayKey).length;
-  const dueCount = countDueForReview(characters);
+  const dueSentenceCount = countDueForReview(sentences);
 
   return (
     <div className="screen">
       <h1 className="page-title">哈囉！今天也一起學漢字吧</h1>
 
       <div className="card" style={{ display: "flex", gap: 16, marginBottom: 16 }}>
-        <Stat label="已學漢字" value={loading ? "…" : characters.length} />
+        <Stat label="已學漢字／詞彙" value={loading ? "…" : characters.length} />
         <Stat label="累積星星" value={loading ? "…" : totalStars} icon="⭐️" />
         <Stat label="今天新增" value={loading ? "…" : addedToday} />
       </div>
@@ -42,24 +42,19 @@ export function HomePage({
       <div className="card" style={{ marginBottom: 16 }}>
         <p style={{ margin: "0 0 12px", fontWeight: 600 }}>
           {characters.length === 0
-            ? "還沒有任何漢字，先去新增今天共讀繪本學到的字吧！"
-            : dueCount > 0
-              ? `目前有 ${dueCount} 個字適合複習囉`
-              : "今天的字都複習過了，可以自由複習或新增新字"}
+            ? "還沒有任何漢字，先去新增今天學到的字或詞彙吧！"
+            : dueSentenceCount > 0
+              ? `目前有 ${dueSentenceCount} 句適合複習囉`
+              : "今天的句子都複習過了，可以自由複習或新增新字"}
         </p>
         <div style={{ display: "flex", gap: 10 }}>
           <Link to="/add" className="btn btn-secondary" style={{ flex: 1 }}>
-            ✏️ 新增漢字
+            ✏️ 新增漢字／詞彙
           </Link>
-          <Link to="/review" className="btn btn-primary" style={{ flex: 1 }}>
-            🀄 開始複習
-          </Link>
-        </div>
-        {characters.length > 0 && (
-          <Link to="/sentences" className="btn btn-outline btn-block" style={{ marginTop: 10 }}>
+          <Link to="/sentences" className="btn btn-primary" style={{ flex: 1 }}>
             📝 AI 造句練習
           </Link>
-        )}
+        </div>
       </div>
 
       <p style={{ textAlign: "center", color: "var(--color-text-muted)", fontSize: "0.85rem" }}>

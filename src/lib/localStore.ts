@@ -45,7 +45,6 @@ export function subscribeCharactersLocal(
 export async function addCharacterBatchLocal(
   familyCode: string,
   characters: NewCharacterInput[],
-  bookTitle: string,
 ): Promise<void> {
   const now = Date.now();
   const todayKey = dateKey(new Date(now));
@@ -61,32 +60,11 @@ export async function addCharacterBatchLocal(
     id: `${now}-${i}-${Math.random().toString(36).slice(2, 8)}`,
     hanzi: c.hanzi,
     zhuyin: c.zhuyin,
-    bookTitle: bookTitle.trim(),
+    bookTitle: "",
     addedAt: now,
     addedDateKey: todayKey,
     stats: initialStats,
   }));
 
   writeAll(familyCode, [...existing, ...additions]);
-}
-
-export async function recordReviewResultLocal(
-  familyCode: string,
-  charId: string,
-  correct: boolean,
-): Promise<void> {
-  const existing = readAll(familyCode);
-  const updated = existing.map((c) => {
-    if (c.id !== charId) return c;
-    return {
-      ...c,
-      stats: {
-        reviewCount: c.stats.reviewCount + 1,
-        correctCount: c.stats.correctCount + (correct ? 1 : 0),
-        box: correct ? Math.min(c.stats.box + 1, 5) : 1,
-        lastReviewedAt: Date.now(),
-      },
-    };
-  });
-  writeAll(familyCode, updated);
 }

@@ -5,10 +5,10 @@ import { useSentences } from "./hooks/useSentences";
 import { FamilySetupPage } from "./pages/FamilySetupPage";
 import { HomePage } from "./pages/HomePage";
 import { AddCharactersPage } from "./pages/AddCharactersPage";
-import { ReviewPage } from "./pages/ReviewPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { SentencePracticePage } from "./pages/SentencePracticePage";
 import { SentenceManagePage } from "./pages/SentenceManagePage";
+import { BatchPracticePage } from "./pages/BatchPracticePage";
 import { NavBar } from "./components/NavBar";
 
 function App() {
@@ -63,10 +63,11 @@ function App() {
             />
           }
         />
-        <Route path="/add" element={<AddCharactersPage familyCode={familyCode} />} />
         <Route
-          path="/review"
-          element={<ReviewPage characters={characters} familyCode={familyCode} />}
+          path="/add"
+          element={
+            <AddCharactersPage familyCode={familyCode} characters={characters} sentences={sentences} />
+          }
         />
         <Route
           path="/history"
@@ -86,6 +87,10 @@ function App() {
         <Route
           path="/sentences/manage"
           element={<SentenceManagePage sentences={sentences} familyCode={familyCode} />}
+        />
+        <Route
+          path="/sentences/batch"
+          element={<BatchPracticePage sentences={sentences} familyCode={familyCode} />}
         />
       </Routes>
       <NavBar />
