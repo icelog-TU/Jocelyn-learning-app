@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { CharacterDoc, SentenceDoc, WeakCharDoc } from "../types";
 import { dateKey } from "../lib/characters";
 import { DIFFICULTY_LABELS } from "../lib/sentencePractice";
-import { removeWeakCharEntry, saveWeakChar } from "../lib/store";
+import { removeCharacter, removeWeakCharEntry, saveWeakChar } from "../lib/store";
 
 interface Props {
   characters: CharacterDoc[];
@@ -108,7 +108,7 @@ export function HistoryPage({ characters, sentences, weakChars, familyCode }: Pr
       {tab === "characters" ? (
         <>
           <WeakCharsSection weakChars={weakChars} familyCode={familyCode} />
-          <CharacterHistory characters={characters} />
+          <CharacterHistory characters={characters} familyCode={familyCode} />
         </>
       ) : (
         <SentenceHistory sentences={sentences} />
@@ -209,11 +209,16 @@ function WeakCharsSection({ weakChars, familyCode }: { weakChars: WeakCharDoc[];
   );
 }
 
-function CharacterHistory({ characters }: { characters: CharacterDoc[] }) {
+function CharacterHistory({ characters, familyCode }: { characters: CharacterDoc[]; familyCode: string }) {
   const groups = groupCharsByDate(characters);
 
   if (groups.length === 0) {
     return <div className="empty-state card">還沒有紀錄，新增今天的漢字後就會出現在這裡</div>;
+  }
+
+  async function handleDelete(c: CharacterDoc) {
+    if (!confirm(`確定要刪除「${c.hanzi.length > 10 ? c.hanzi.slice(0, 10) + "…" : c.hanzi}」嗎？`)) return;
+    await removeCharacter(familyCode, c.id);
   }
 
   return (
@@ -237,24 +242,52 @@ function CharacterHistory({ characters }: { characters: CharacterDoc[] }) {
             </p>
           )}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-            {group.chars.map((c) => (
-              <div
-                key={c.id}
-                style={{
-                  textAlign: "center",
-                  background: "#fff8ee",
-                  borderRadius: 12,
-                  padding: "8px 12px",
-                  minWidth: 56,
-                }}
-              >
-                <div style={{ fontSize: "1.6rem" }}>{c.hanzi}</div>
-                <div style={{ fontSize: "0.7rem", color: "var(--color-secondary)" }}>{c.zhuyin}</div>
-                <div style={{ fontSize: "0.7rem", color: "var(--color-text-muted)" }}>
-                  {"★".repeat(Math.min(c.stats.box, 5))}
+            {group.chars.map((c) => {
+              const isLong = Array.from(c.hanzi).length > 10;
+              const displayHanzi = isLong ? Array.from(c.hanzi).slice(0, 10).join("") + "…" : c.hanzi;
+              return (
+                <div
+                  key={c.id}
+                  title={isLong ? c.hanzi : undefined}
+                  style={{
+                    position: "relative",
+                    textAlign: "center",
+                    background: "#fff8ee",
+                    borderRadius: 12,
+                    padding: "8px 12px",
+                    paddingTop: 18,
+                    minWidth: 56,
+                    maxWidth: isLong ? 220 : undefined,
+                  }}
+                >
+                  <button
+                    onClick={() => handleDelete(c)}
+                    aria-label={`刪除「${displayHanzi}」`}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      right: 2,
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--color-text-muted)",
+                      fontSize: "0.75rem",
+                      padding: 4,
+                      lineHeight: 1,
+                    }}
+                  >
+                    ✕
+                  </button>
+                  <div style={{ fontSize: isLong ? "1.1rem" : "1.6rem", wordBreak: "break-all" }}>
+                    {displayHanzi}
+                  </div>
+                  <div style={{ fontSize: "0.7rem", color: "var(--color-secondary)" }}>{c.zhuyin}</div>
+                  <div style={{ fontSize: "0.7rem", color: "var(--color-text-muted)" }}>
+                    {"★".repeat(Math.min(c.stats.box, 5))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}

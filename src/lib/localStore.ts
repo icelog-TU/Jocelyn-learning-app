@@ -68,3 +68,11 @@ export async function addCharacterBatchLocal(
 
   writeAll(familyCode, [...existing, ...additions]);
 }
+
+export async function deleteCharacterLocal(familyCode: string, characterId: string): Promise<void> {
+  const existing = readAll(familyCode);
+  writeAll(
+    familyCode,
+    existing.filter((c) => c.id !== characterId),
+  );
+}

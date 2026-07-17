@@ -1,4 +1,13 @@
-import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, writeBatch } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  writeBatch,
+} from "firebase/firestore";
 import { db } from "./firebase";
 import type { CharacterDoc, CharacterStats, NewCharacterInput } from "../types";
 
@@ -76,4 +85,9 @@ export async function addCharacterBatch(
   }
 
   await batch.commit();
+}
+
+export async function deleteCharacterDoc(familyCode: string, characterId: string): Promise<void> {
+  if (!db) throw new Error("Firestore is not configured");
+  await deleteDoc(doc(db, "families", familyCode, "characters", characterId));
 }

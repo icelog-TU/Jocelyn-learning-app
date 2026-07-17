@@ -42,6 +42,10 @@ export function AddCharactersPage({
   const [rawInput, setRawInput] = useState("");
   const [pending, setPending] = useState<Pending | null>(null);
   const [saving, setSaving] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkInput, setBulkInput] = useState("");
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [savedWord, setSavedWord] = useState<string | null>(null);
   const [alreadyKnown, setAlreadyKnown] = useState(false);
   const [difficulty, setDifficulty] = useState<SentenceDifficulty>("medium");
@@ -79,6 +83,32 @@ export function AddCharactersPage({
 
   function updatePendingZhuyin(zhuyin: string) {
     setPending((p) => (p ? { ...p, zhuyin } : p));
+  }
+
+  async function handleBulkImport() {
+    const pastedChars = Array.from(bulkInput).filter((c) => /\p{Script=Han}/u.test(c));
+    const uniqueChars = [...new Set(pastedChars)];
+    const newChars = uniqueChars.filter((c) => !characters.some((existing) => existing.hanzi === c));
+
+    if (uniqueChars.length === 0) {
+      setBulkMessage("沒有偵測到漢字，請確認貼上的內容。");
+      return;
+    }
+    if (newChars.length === 0) {
+      setBulkMessage("這些字都已經學過囉，沒有新增任何字。");
+      return;
+    }
+
+    setBulkSaving(true);
+    try {
+      const entries = newChars.map((hanzi) => ({ hanzi, zhuyin: guessZhuyin(hanzi) }));
+      await saveCharacterBatch(familyCode, entries);
+      const skipped = uniqueChars.length - newChars.length;
+      setBulkMessage(`已匯入 ${newChars.length} 個新字${skipped > 0 ? `，略過 ${skipped} 個已經學過的字` : ""}。`);
+      setBulkInput("");
+    } finally {
+      setBulkSaving(false);
+    }
   }
 
   async function handleSaveWord() {
@@ -239,6 +269,68 @@ export function AddCharactersPage({
         <button className="btn btn-secondary btn-block" onClick={handleAddFromInput}>
           加入
         </button>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <button
+          onClick={() => setBulkOpen((o) => !o)}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            width: "100%",
+            textAlign: "left",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            cursor: "pointer",
+            fontWeight: 700,
+            fontSize: "1rem",
+          }}
+        >
+          <span>📥 批次匯入之前學過的字</span>
+          <span>{bulkOpen ? "▲" : "▼"}</span>
+        </button>
+        {bulkOpen && (
+          <>
+            <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", margin: "10px 0" }}>
+              如果想把之前已經學過、還沒登記進來的字一次貼上，可以貼在這裡——會自動拆成一個一個的字分開儲存
+              （不是當成一個詞），已經學過的字會自動略過，也不會進到造句練習，只是把字記錄起來讓 AI
+              知道她已經會這些字。
+            </p>
+            <textarea
+              value={bulkInput}
+              onChange={(e) => {
+                setBulkInput(e.target.value);
+                setBulkMessage(null);
+              }}
+              rows={4}
+              placeholder="貼上一大串之前學過的字"
+              style={{
+                width: "100%",
+                fontSize: "1rem",
+                padding: 10,
+                borderRadius: 12,
+                border: "2px solid #eee0d0",
+                fontFamily: "inherit",
+                marginBottom: 10,
+                resize: "vertical",
+              }}
+            />
+            <button
+              className="btn btn-secondary btn-block"
+              disabled={bulkSaving}
+              onClick={handleBulkImport}
+            >
+              {bulkSaving ? "匯入中…" : "批次匯入"}
+            </button>
+            {bulkMessage && (
+              <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", marginBottom: 0 }}>
+                {bulkMessage}
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       {pending && (

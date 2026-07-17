@@ -1,6 +1,6 @@
 import { isFirebaseConfigured } from "./firebase";
-import { addCharacterBatch, subscribeCharacters } from "./characters";
-import { addCharacterBatchLocal, subscribeCharactersLocal } from "./localStore";
+import { addCharacterBatch, deleteCharacterDoc, subscribeCharacters } from "./characters";
+import { addCharacterBatchLocal, deleteCharacterLocal, subscribeCharactersLocal } from "./localStore";
 import {
   addSentenceBatch,
   deleteSentenceDoc,
@@ -46,6 +46,12 @@ export function saveCharacterBatch(
   return isFirebaseConfigured
     ? addCharacterBatch(familyCode, characters)
     : addCharacterBatchLocal(familyCode, characters);
+}
+
+export function removeCharacter(familyCode: string, characterId: string): Promise<void> {
+  return isFirebaseConfigured
+    ? deleteCharacterDoc(familyCode, characterId)
+    : deleteCharacterLocal(familyCode, characterId);
 }
 
 export function subscribeToSentences(
