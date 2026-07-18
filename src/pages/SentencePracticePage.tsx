@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import type { CharacterDoc, SentenceDifficulty, SentenceDoc } from "../types";
 import { pickReviewSession } from "../lib/review";
 import {
@@ -85,7 +85,6 @@ export function SentencePracticePage({
   // as "known" even if manually added without a separate CharacterDoc entry.
   const knownChars = new Set([...characters.flatMap((c) => Array.from(c.hanzi)), ...weakChars]);
   const location = useLocation();
-  const navigate = useNavigate();
 
   // Arriving from a weak-char "🪄 造句" link opens the dialog pre-filled
   // with that character so it doesn't have to be retyped.
@@ -216,10 +215,6 @@ export function SentencePracticePage({
     startSessionFromPool(sentences.filter((s) => s.sourceChars[0] === char));
   }
 
-  function editTargetChar(char: string) {
-    navigate("/sentences/manage", { state: { filterChar: char } });
-  }
-
   function backToModeSelect() {
     setModeError(null);
     setCharFilterInput("");
@@ -326,11 +321,7 @@ export function SentencePracticePage({
           </button>
         </h1>
 
-        <RecentTargetChars
-          sentences={sentences}
-          onPractice={startTargetCharReview}
-          onEdit={editTargetChar}
-        />
+        <RecentTargetChars sentences={sentences} onPractice={startTargetCharReview} />
 
         <div className="card" style={{ marginBottom: 16 }}>
           <button
@@ -539,14 +530,18 @@ export function SentencePracticePage({
  * jumping straight into that day's own batch instead of having to dig
  * through 句子紀錄. Characters age out of this row once more than 10 newer
  * ones exist — their sentences aren't touched, they just lose this shortcut. */
+/** Deliberately has no per-character edit shortcut here — this row sits
+ * right next to the big colorful practice buttons a young child taps
+ * through on her own, so anything that opens an editor here risks getting
+ * tapped by accident. Editing a specific character's batch still works via
+ * 管理句子庫's own filter box, just one step further away from where a
+ * curious kid would stumble into it. */
 function RecentTargetChars({
   sentences,
   onPractice,
-  onEdit,
 }: {
   sentences: SentenceDoc[];
   onPractice: (char: string) => void;
-  onEdit: (char: string) => void;
 }) {
   const chars = recentTargetChars(sentences, 10);
   if (chars.length === 0) return null;
@@ -565,48 +560,29 @@ function RecentTargetChars({
         style={{ ...speakableStyle, color: "var(--color-text-muted)", fontSize: "0.85rem", marginBottom: 12 }}
         onClick={() => speak("按字直接複習那一天學的句子，最多保留最近十個字。")}
       >
-        按字直接複習那一天學的句子（最新在最左邊），最多保留最近 10 個字；按 ✏️ 可以去修改那批句子。
+        按字直接複習那一天學的句子（最新在最左邊），最多保留最近 10 個字。
       </button>
-      <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
         {chars.map((char) => (
-          <div key={char} style={{ flexShrink: 0, textAlign: "center" }}>
-            <button
-              type="button"
-              onClick={() => onPractice(char)}
-              aria-label={`複習「${char}」那天的句子`}
-              style={{
-                minWidth: 48,
-                padding: "10px 12px",
-                borderRadius: 14,
-                border: "none",
-                background: "#fff1e2",
-                color: "var(--color-primary-dark)",
-                fontSize: "1.2rem",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              {char}
-            </button>
-            <button
-              type="button"
-              onClick={() => onEdit(char)}
-              aria-label={`編輯「${char}」那批句子`}
-              style={{
-                display: "block",
-                width: "100%",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "var(--color-text-muted)",
-                fontSize: "0.8rem",
-                marginTop: 4,
-                padding: 4,
-              }}
-            >
-              ✏️
-            </button>
-          </div>
+          <button
+            key={char}
+            type="button"
+            onClick={() => onPractice(char)}
+            aria-label={`複習「${char}」那天的句子`}
+            style={{
+              padding: "10px 4px",
+              borderRadius: 14,
+              border: "none",
+              background: "#fff1e2",
+              color: "var(--color-primary-dark)",
+              fontSize: "1.1rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              wordBreak: "break-all",
+            }}
+          >
+            {char}
+          </button>
         ))}
       </div>
     </div>
