@@ -12,6 +12,8 @@ import { RecordButton } from "./RecordButton";
 import { FindCharacterGame } from "./games/FindCharacterGame";
 import { TeachAnimalGame } from "./games/TeachAnimalGame";
 import { FillBlankGame } from "./games/FillBlankGame";
+import { WordOrderGame } from "./games/WordOrderGame";
+import { WhoReadItRightGame } from "./games/WhoReadItRightGame";
 import { shuffled } from "../lib/sentenceGames";
 
 /** Budget for the completion-screen star count-up animation, in ms. */
@@ -29,8 +31,15 @@ const PRAISE_PHRASES = [
 /** Each round picks one of these ways to interact with the sentence, instead
  * of always doing the same "record yourself reading it" drill — variety
  * keeps it feeling like play rather than a repeated test. */
-type RoundMode = "classic" | "find-char" | "teach-animal" | "fill-blank";
-const ROUND_MODES: RoundMode[] = ["classic", "find-char", "teach-animal", "fill-blank"];
+type RoundMode = "classic" | "find-char" | "teach-animal" | "fill-blank" | "word-order" | "who-read-right";
+const ROUND_MODES: RoundMode[] = [
+  "classic",
+  "find-char",
+  "teach-animal",
+  "fill-blank",
+  "word-order",
+  "who-read-right",
+];
 
 /** Minimum time to keep "我念對了" disabled after a sentence appears, so
  * tapping it the instant it renders (without reading anything) can't earn a
@@ -342,6 +351,20 @@ export function SentencePracticeSession({
           key={current.id}
           sentence={current}
           pool={localSession}
+          onComplete={() => handleCorrect({ silent: true })}
+          onSkip={handleSkip}
+        />
+      ) : mode === "word-order" ? (
+        <WordOrderGame
+          key={current.id}
+          sentence={current}
+          onComplete={() => handleCorrect({ silent: true })}
+          onSkip={handleSkip}
+        />
+      ) : mode === "who-read-right" ? (
+        <WhoReadItRightGame
+          key={current.id}
+          sentence={current}
           onComplete={() => handleCorrect({ silent: true })}
           onSkip={handleSkip}
         />
