@@ -42,3 +42,13 @@ export function nextStats(current: CharacterStats, correct: boolean): CharacterS
     lastReviewedAt: Date.now(),
   };
 }
+
+/** Label for a card's spaced-repetition "box" level (1-5): how many correct
+ * reviews in a row it's survived, which is what schedules its next review —
+ * NOT the star reward earned for reading it (that's a fixed amount based on
+ * difficulty, see starsForDifficulty). Deliberately phrased and styled
+ * differently from the ⭐️ reward stars used everywhere else in the app, so
+ * the two aren't mistaken for each other. */
+export function masteryLabel(box: number): string {
+  return `熟練度 ${Math.min(box, 5)}/5`;
+}

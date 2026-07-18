@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { SentenceDoc, SentenceDifficulty, SentenceOrigin } from "../types";
 import { editSentenceDifficulty, editSentenceLineBreaks, editSentenceText, removeSentence } from "../lib/store";
 import { DIFFICULTY_LABELS, DIFFICULTY_ORDER } from "../lib/sentencePractice";
+import { masteryLabel } from "../lib/review";
 
 const ORIGIN_LABELS: Record<SentenceOrigin, string> = {
   ai: "AI",
@@ -96,7 +97,9 @@ export function SentenceManagePage({ sentences, familyCode }: Props) {
                   ))}
                 </select>
                 <span className="pill">{ORIGIN_LABELS[s.origin ?? "ai"]}</span>
-                <span className="pill">{"★".repeat(Math.min(s.stats.box, 5))}</span>
+                <span className="pill" title="複習進度：連續答對幾次會決定下次複習的間隔，跟念對能拿的星星數無關">
+                  {masteryLabel(s.stats.box)}
+                </span>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
                 <button className="btn btn-outline" onClick={() => setBreakEditId(s.id)}>

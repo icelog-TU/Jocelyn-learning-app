@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { CharacterDoc, SentenceDoc, WeakCharDoc } from "../types";
 import { dateKey } from "../lib/characters";
+import { masteryLabel } from "../lib/review";
 import { DIFFICULTY_LABELS } from "../lib/sentencePractice";
 import { removeCharacter, removeWeakCharEntry, saveWeakChar, usingCloudSync } from "../lib/store";
 import { backupLocalDataToCloud, peekLocalBackupSummary, type LocalBackupSummary } from "../lib/backup";
@@ -491,8 +492,8 @@ function CharacterHistory({ characters, familyCode }: { characters: CharacterDoc
                     {displayHanzi}
                   </div>
                   <div style={{ fontSize: "0.7rem", color: "var(--color-secondary)" }}>{c.zhuyin}</div>
-                  <div style={{ fontSize: "0.7rem", color: "var(--color-text-muted)" }}>
-                    {"★".repeat(Math.min(c.stats.box, 5))}
+                  <div style={{ fontSize: "0.65rem", color: "var(--color-text-muted)" }}>
+                    {masteryLabel(c.stats.box)}
                   </div>
                 </div>
               );
@@ -588,7 +589,7 @@ function SentenceHistory({ sentences }: { sentences: SentenceDoc[] }) {
                   >
                     <span style={{ fontSize: "1.05rem" }}>{s.text}</span>
                     <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", flexShrink: 0 }}>
-                      {"★".repeat(Math.min(s.stats.box, 5))}
+                      {masteryLabel(s.stats.box)}
                     </span>
                   </div>
                 ))}
