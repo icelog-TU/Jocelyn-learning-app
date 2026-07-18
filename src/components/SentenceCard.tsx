@@ -155,7 +155,8 @@ export function SentenceCard({ sentence, lineBreaks, extraActions }: Props) {
                             style={{
                               position: "absolute",
                               top: "50%",
-                              right: -12,
+                              left: "100%",
+                              marginLeft: 2,
                               transform: "translateY(-50%)",
                               fontSize: "1rem",
                               color: "var(--color-secondary)",

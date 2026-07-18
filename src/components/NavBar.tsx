@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { speak } from "../lib/speech";
 
 const NAV_ITEMS = [
   { to: "/", label: "首頁", icon: "🏠", end: true },
@@ -17,6 +18,7 @@ export function NavBar() {
           to={item.to}
           end={item.end}
           className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+          onClick={() => speak(item.label)}
         >
           <span className="nav-icon">{item.icon}</span>
           <span>{item.label}</span>

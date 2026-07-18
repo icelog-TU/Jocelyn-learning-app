@@ -1,9 +1,11 @@
+import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import type { AffectionDoc, CharacterDoc, CollectedPrizeDoc, CreatureVariant, SentenceDoc } from "../types";
 import { computeTotalStars } from "../lib/sentencePractice";
 import { giveGiftToCreature } from "../lib/store";
 import { speakAsRole } from "../lib/voiceProvider";
+import { speak } from "../lib/speech";
 import { playEnvelopeSound, playHeartSound, playInsufficientSound, playPatSound, playSpendSound } from "../lib/sound";
 import { FriendshipPath } from "../components/FriendshipPath";
 import { GiftCard } from "../components/GiftCard";
@@ -41,6 +43,20 @@ interface Props {
 }
 
 const MOOD_EMOJI = ["😐", "🙂", "😊", "🥰", "🤩"];
+
+/** Reset styles so the stage-panel-title <button> keeps the .stage-panel-title
+ * class's layout (flex, gap, font-weight) without looking like a button. */
+const stagePanelTitleResetStyle: CSSProperties = {
+  background: "none",
+  border: "none",
+  padding: 0,
+  cursor: "pointer",
+  textAlign: "left",
+  color: "inherit",
+  fontFamily: "inherit",
+  fontSize: "inherit",
+  width: "100%",
+};
 
 export function CreatureDetailPage({ characters, sentences, prizes, affection, familyCode }: Props) {
   const { speciesId = "", variant = "" } = useParams<{ speciesId: string; variant: string }>();
@@ -242,12 +258,20 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
   function renderStagePanel(idx: number) {
     if (!species) return null;
     const heartLabel = idx > 0 ? `（❤️${AFFECTION_STAGES[idx].threshold}）` : "";
+    const stageTitleStyle = { ...stagePanelTitleResetStyle };
 
     if (idx === 0) {
       const text = firstMeetingText(displayName, typedVariant);
       return (
         <>
-          <p className="stage-panel-title">🌱 初次見面</p>
+          <button
+            type="button"
+            className="stage-panel-title"
+            style={stageTitleStyle}
+            onClick={() => speak("初次見面")}
+          >
+            🌱 初次見面
+          </button>
           <p style={{ margin: "0 0 10px" }}>{text}</p>
           <button className="btn btn-outline" onClick={() => speakAsRole(text, typedVariant)}>
             🔊 播放
@@ -259,7 +283,14 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
     if (idx === 1) {
       return (
         <>
-          <p className="stage-panel-title">👋 打招呼{heartLabel}</p>
+          <button
+            type="button"
+            className="stage-panel-title"
+            style={stageTitleStyle}
+            onClick={() => speak(`打招呼，需要 ${AFFECTION_STAGES[idx].threshold} 顆愛心`)}
+          >
+            👋 打招呼{heartLabel}
+          </button>
           {greetingText && <p style={{ margin: "0 0 10px", fontSize: "1.1rem" }}>{greetingText}</p>}
           <button className="btn btn-primary btn-block" onClick={handleGreet}>
             🔊 跟{displayName}打招呼
@@ -271,7 +302,14 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
     if (idx === 2) {
       return (
         <>
-          <p className="stage-panel-title">🤗 一起玩{heartLabel}</p>
+          <button
+            type="button"
+            className="stage-panel-title"
+            style={stageTitleStyle}
+            onClick={() => speak(`一起玩，需要 ${AFFECTION_STAGES[idx].threshold} 顆愛心`)}
+          >
+            🤗 一起玩{heartLabel}
+          </button>
           <p style={{ margin: "0 0 10px", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
             點一下上面的{displayName}，摸摸牠的頭！
           </p>
@@ -285,7 +323,14 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
     if (idx === 3) {
       return (
         <>
-          <p className="stage-panel-title">💌 一封信{heartLabel}</p>
+          <button
+            type="button"
+            className="stage-panel-title"
+            style={stageTitleStyle}
+            onClick={() => speak(`一封信，需要 ${AFFECTION_STAGES[idx].threshold} 顆愛心`)}
+          >
+            💌 一封信{heartLabel}
+          </button>
           {envelopeOpen ? (
             <div className="envelope-reveal" style={{ textAlign: "center" }}>
               <div style={{ fontSize: "2.5rem" }}>
@@ -317,7 +362,14 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
     const secretLine = secretIntroText(displayName, typedVariant);
     return (
       <>
-        <p className="stage-panel-title">💖 最好的朋友{heartLabel}</p>
+        <button
+          type="button"
+          className="stage-panel-title"
+          style={stageTitleStyle}
+          onClick={() => speak(`最好的朋友，需要 ${AFFECTION_STAGES[idx].threshold} 顆愛心`)}
+        >
+          💖 最好的朋友{heartLabel}
+        </button>
         <p style={{ margin: "0 0 10px" }}>{secretLine}</p>
         <div className="profile-card-grid">
           <div className="profile-card-row">
@@ -393,7 +445,23 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <p style={{ fontWeight: 700, margin: "0 0 10px", position: "relative", textAlign: "center" }}>
+        <button
+          type="button"
+          style={{
+            fontWeight: 700,
+            margin: "0 0 10px",
+            position: "relative",
+            textAlign: "center",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontFamily: "inherit",
+            fontSize: "inherit",
+            color: "inherit",
+            width: "100%",
+          }}
+          onClick={() => speak(`可用星星，${displayedAvailable} 顆`)}
+        >
           <FloatingDelta text={`-${spendFx.cost}⭐️`} triggerKey={spendFx.key} color="var(--color-danger)" />
           ⭐️ 可用星星：
           <span key={shakeKey} className={`star-balance${shakeKey ? " shake" : ""}`}>
@@ -401,7 +469,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
               {displayedAvailable}
             </span>
           </span>
-        </p>
+        </button>
         {insufficientMsg && (
           <p style={{ textAlign: "center", color: "var(--color-danger)", fontSize: "0.85rem", margin: "0 0 10px" }}>
             再學幾個字，就有星星送禮物囉

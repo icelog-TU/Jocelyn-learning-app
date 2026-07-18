@@ -1,4 +1,5 @@
 import "./HeartProgress.css";
+import { speak } from "../lib/speech";
 
 interface Props {
   /** Hearts earned so far (already clamped/animated by the caller). */
@@ -20,7 +21,12 @@ export function HeartProgress({ filled }: Props) {
   }
 
   return (
-    <div className="heart-progress" aria-label={`好感度 ${clamped} / ${MAX_HEARTS} 顆心`}>
+    <button
+      type="button"
+      className="heart-progress"
+      aria-label={`好感度 ${clamped} / ${MAX_HEARTS} 顆心`}
+      onClick={() => speak(`已經有 ${clamped} 顆愛心`)}
+    >
       {rows.map((row, ri) => (
         <div className="heart-progress-row" key={ri}>
           {row.map((i) => (
@@ -30,6 +36,6 @@ export function HeartProgress({ filled }: Props) {
           ))}
         </div>
       ))}
-    </div>
+    </button>
   );
 }

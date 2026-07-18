@@ -88,7 +88,7 @@ export function GachaPage({ characters, sentences, prizes, affection, familyCode
 
   return (
     <div className="screen">
-      <h1 className="page-title" style={{ margin: 0 }}>
+      <h1 className="page-title" style={{ margin: "4px 0 4px" }}>
         <button
           type="button"
           style={{ ...speakableButtonStyle, fontSize: "inherit", fontWeight: "inherit" }}
@@ -103,7 +103,6 @@ export function GachaPage({ characters, sentences, prizes, affection, familyCode
           ...speakableButtonStyle,
           color: "var(--color-text-muted)",
           fontSize: "0.9rem",
-          marginTop: -8,
           marginBottom: 16,
         }}
         onClick={() => speak("累積練習賺到的星星，就可以轉蛋，解鎖怪獸一家人！")}
