@@ -191,6 +191,12 @@ export function SentenceCard({
                     onPointerUp: onCharPressEnd ? () => onCharPressEnd(charIndex, c.char) : undefined,
                     onPointerLeave: onCharPressEnd ? () => onCharPressEnd(charIndex, c.char) : undefined,
                     onPointerCancel: onCharPressEnd ? () => onCharPressEnd(charIndex, c.char) : undefined,
+                    // A sustained press (teach-the-animal's hold-to-record)
+                    // is exactly what Android Chrome's native long-press
+                    // menu (download/share/print) also triggers on — left
+                    // unblocked, it pops up mid-hold and eats the gesture,
+                    // which read as "the recording just wouldn't start".
+                    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
                     "aria-label": `這個字是「${c.char}」`,
                     style: {
                       display: "flex",
@@ -203,6 +209,9 @@ export function SentenceCard({
                       font: "inherit",
                       cursor: "pointer",
                       touchAction: "none" as const,
+                      WebkitTouchCallout: "none" as const,
+                      WebkitUserSelect: "none" as const,
+                      userSelect: "none" as const,
                     },
                   }
                 : {
