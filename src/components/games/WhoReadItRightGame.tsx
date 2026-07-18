@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SentenceDoc } from "../../types";
 import { SentenceCard } from "../SentenceCard";
-import { speakSequence } from "../../lib/ttsSequence";
+import { speakSequence, type SpeakSequenceHandle } from "../../lib/ttsSequence";
 import { playInsufficientSound, playStarSound } from "../../lib/sound";
 import { ANIMAL_EMOJIS, generateWrongVariants, shuffled } from "../../lib/sentenceGames";
 
@@ -21,11 +21,14 @@ interface AnimalOption {
 
 /** "誰念對了" — four animals each "read" the sentence, but only one gets
  * every character right; the other three each swap a pair of adjacent
- * characters. She must listen to all four (tapping just plays that animal's
- * reading, highlighting the matching position on the reference card as it
- * goes — including for the wrong ones, which is an honest mismatch since
- * the wrong readings are same-length swaps of the real sentence) before she
- * can pick the one she thinks is correct. */
+ * characters. Tapping an animal she hasn't heard yet plays its reading
+ * (interrupting whichever animal was playing, if any — she doesn't have to
+ * let a wrong one finish before trying another). Tapping an animal she's
+ * ALREADY heard — including the one currently mid-playback — commits it as
+ * her answer right away, so she never has to wait through all four once
+ * she's confident: catching a wrong character partway through, or a fully
+ * correct reading, both let her act immediately instead of only after a
+ * fixed "listen to everything first" gate. */
 export function WhoReadItRightGame({ sentence, onComplete, onSkip }: Props) {
   const correctChars = useMemo(
     () => Array.from(sentence.text).filter((c) => /\p{Script=Han}/u.test(c)),
@@ -55,30 +58,35 @@ export function WhoReadItRightGame({ sentence, onComplete, onSkip }: Props) {
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   const [resolved, setResolved] = useState(false);
   const [wrongKey, setWrongKey] = useState<string | null>(null);
+  const currentSeqRef = useRef<SpeakSequenceHandle | null>(null);
 
   const playable = options.length === 4;
-  const phase: "listening" | "choosing" = playedKeys.size >= options.length ? "choosing" : "listening";
 
   useEffect(() => {
     if (!playable) {
       onSkip();
       return;
     }
-    speakSequence(["聽聽看，哪一隻動物把句子念對了？點一下動物，聽聽牠怎麼念吧！"]);
+    speakSequence([
+      "聽聽看每一隻動物怎麼念。已經聽過的動物，再點一次就是選定牠，不用四隻都聽完喔！",
+    ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sentence.id, playable]);
 
   if (!playable) return null;
 
   function playAnimal(opt: AnimalOption) {
-    if (playingKey || resolved) return;
+    if (resolved) return;
+    // Interrupts whichever animal is currently mid-reading, if any — she
+    // shouldn't have to let a wrong one finish before trying the next.
+    currentSeqRef.current?.cancel();
     setWrongKey(null);
+    setActiveIndex(null);
     setPlayingKey(opt.key);
-    const seq = speakSequence(opt.chars, {
-      pitch: opt.pitch,
-      onCharStart: setActiveIndex,
-    });
+    const seq = speakSequence(opt.chars, { pitch: opt.pitch, onCharStart: setActiveIndex });
+    currentSeqRef.current = seq;
     seq.done.then(() => {
+      if (currentSeqRef.current !== seq) return; // superseded by another tap
       setActiveIndex(null);
       setPlayingKey(null);
       setPlayedKeys((prev) => new Set(prev).add(opt.key));
@@ -86,7 +94,10 @@ export function WhoReadItRightGame({ sentence, onComplete, onSkip }: Props) {
   }
 
   function selectAnimal(opt: AnimalOption) {
-    if (phase !== "choosing" || playingKey || resolved) return;
+    if (resolved) return;
+    currentSeqRef.current?.cancel();
+    setPlayingKey(null);
+    setActiveIndex(null);
     if (opt.isCorrect) {
       setResolved(true);
       playStarSound();
@@ -99,11 +110,16 @@ export function WhoReadItRightGame({ sentence, onComplete, onSkip }: Props) {
     }
   }
 
+  function handleTapAnimal(opt: AnimalOption) {
+    if (resolved) return;
+    const alreadyHeard = opt.key === playingKey || playedKeys.has(opt.key);
+    if (alreadyHeard) selectAnimal(opt);
+    else playAnimal(opt);
+  }
+
   const phaseText = resolved
     ? "🎉 你找到念對的動物了！"
-    : phase === "listening"
-      ? `🔊 點一下動物，聽聽牠怎麼念（${playedKeys.size}/${options.length}）`
-      : "🤔 你覺得哪一隻動物念對了？點牠一下選選看";
+    : "🔊 點一下動物聽聽看；聽過的動物再點一次，就是選定牠！";
 
   return (
     <div>
@@ -122,16 +138,21 @@ export function WhoReadItRightGame({ sentence, onComplete, onSkip }: Props) {
         }}
       >
         {options.map((opt) => {
-          const played = playedKeys.has(opt.key);
+          const playing = playingKey === opt.key;
+          const heard = playing || playedKeys.has(opt.key);
           const isWrongPick = wrongKey === opt.key;
           return (
             <button
               key={opt.key}
               type="button"
-              onClick={() => (phase === "choosing" ? selectAnimal(opt) : playAnimal(opt))}
-              disabled={resolved || (playingKey !== null && playingKey !== opt.key)}
+              onClick={() => handleTapAnimal(opt)}
+              disabled={resolved}
               aria-label={
-                phase === "choosing" ? `動物${opt.animal}，選牠念對了` : `動物${opt.animal}，點一下聽牠念句子`
+                playing
+                  ? `動物${opt.animal}正在念，再點一次選定牠`
+                  : heard
+                    ? `動物${opt.animal}，已經聽過，再點一次選定牠`
+                    : `動物${opt.animal}，點一下聽牠念句子`
               }
               className={isWrongPick ? "char-shake" : undefined}
               style={{
@@ -142,17 +163,12 @@ export function WhoReadItRightGame({ sentence, onComplete, onSkip }: Props) {
                 justifyContent: "center",
                 fontSize: "2.4rem",
                 borderRadius: 20,
-                border:
-                  playingKey === opt.key
-                    ? "3px solid var(--color-primary)"
-                    : played
-                      ? "3px solid #cdeccd"
-                      : "3px solid #eee0d0",
-                background: playingKey === opt.key ? "#fff1e2" : played ? "#f2fbf2" : "#fff",
+                border: playing ? "3px solid var(--color-primary)" : heard ? "3px solid #cdeccd" : "3px solid #eee0d0",
+                background: playing ? "#fff1e2" : heard ? "#f2fbf2" : "#fff",
                 cursor: resolved ? "default" : "pointer",
                 opacity: resolved && !opt.isCorrect ? 0.5 : 1,
                 transition: "transform 0.15s",
-                transform: playingKey === opt.key ? "scale(1.08)" : "scale(1)",
+                transform: playing ? "scale(1.08)" : "scale(1)",
               }}
             >
               {opt.animal}

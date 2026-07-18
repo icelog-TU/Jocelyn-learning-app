@@ -17,6 +17,21 @@ export function pickTargetIndex(text: string, sourceChars: string[]): number | n
 
 export const ANIMAL_EMOJIS = ["🐶", "🐱", "🐰", "🐻", "🐼", "🦊", "🐵", "🐷", "🐸", "🐨"];
 
+/** Spoken name for each animal emoji, e.g. for "教小動物"'s self-introduction
+ * ("我是小豬，我要來唸這個句子") — a plain emoji can't be read aloud. */
+export const ANIMAL_NAMES: Record<string, string> = {
+  "🐶": "小狗",
+  "🐱": "小貓",
+  "🐰": "小兔",
+  "🐻": "小熊",
+  "🐼": "貓熊",
+  "🦊": "小狐狸",
+  "🐵": "小猴子",
+  "🐷": "小豬",
+  "🐸": "青蛙",
+  "🐨": "無尾熊",
+};
+
 export function pickAnimalEmoji(): string {
   return ANIMAL_EMOJIS[Math.floor(Math.random() * ANIMAL_EMOJIS.length)];
 }

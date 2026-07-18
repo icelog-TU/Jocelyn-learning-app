@@ -175,7 +175,19 @@ export function SentenceCard({
                 ? {
                     type: "button" as const,
                     onClick: onCharTap ? () => onCharTap(charIndex, c.char) : undefined,
-                    onPointerDown: onCharPressStart ? () => onCharPressStart(charIndex, c.char) : undefined,
+                    onPointerDown: onCharPressStart
+                      ? (e: React.PointerEvent) => {
+                          // Without capture, a native focus-triggered scroll
+                          // (or any other layout shift) while she's holding
+                          // the character down can slide it out from under
+                          // her stationary finger, firing a pointerleave
+                          // that looks exactly like "she let go" — capture
+                          // keeps this element the target for the rest of
+                          // the gesture regardless of what moves under it.
+                          e.currentTarget.setPointerCapture(e.pointerId);
+                          onCharPressStart(charIndex, c.char);
+                        }
+                      : undefined,
                     onPointerUp: onCharPressEnd ? () => onCharPressEnd(charIndex, c.char) : undefined,
                     onPointerLeave: onCharPressEnd ? () => onCharPressEnd(charIndex, c.char) : undefined,
                     onPointerCancel: onCharPressEnd ? () => onCharPressEnd(charIndex, c.char) : undefined,

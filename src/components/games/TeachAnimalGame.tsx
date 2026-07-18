@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { SentenceDoc } from "../../types";
 import { SentenceCard } from "../SentenceCard";
 import { useAudioRecorder } from "../../hooks/useAudioRecorder";
-import { speakSequence } from "../../lib/ttsSequence";
+import { speakSequence, type SpeakSequenceHandle } from "../../lib/ttsSequence";
 import { playAudioUrl } from "../../lib/audioPlayback";
 import { playDingSound, playStarSound } from "../../lib/sound";
-import { pickAnimalEmoji, pickTargetIndex } from "../../lib/sentenceGames";
+import { ANIMAL_NAMES, pickAnimalEmoji, pickTargetIndex } from "../../lib/sentenceGames";
 
 interface Props {
   sentence: SentenceDoc;
@@ -26,6 +26,20 @@ const MIN_HOLD_MS = 500;
 
 type Phase = "reading" | "recording" | "reciting";
 
+/** Shared by every phase-text variant below (recording banner, priming
+ * hint, default status) — same font size and a minHeight generous enough
+ * for two lines, so text swaps between them never change this block's
+ * rendered height. See the render section for why that stability matters. */
+const PHASE_TEXT_STYLE: CSSProperties = {
+  textAlign: "center",
+  fontSize: "1.1rem",
+  margin: "0 0 12px",
+  minHeight: "2.8em",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
 /** "教小動物" — role reversal: instead of the child being asked to perform,
  * a cartoon animal reads the sentence and gets stuck on one character,
  * asking HER to teach it. She presses and holds the stuck character itself
@@ -44,6 +58,7 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
   // instance of this component per sentence (via `key={current.id}`), so
   // this only ever runs once per round anyway.
   const animal = useMemo(() => pickAnimalEmoji(), []);
+  const animalName = ANIMAL_NAMES[animal] ?? "小動物";
 
   const [phase, setPhase] = useState<Phase>("reading");
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -83,24 +98,39 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
     setPriming(false);
     releasedDuringPrimeRef.current = false;
 
-    const before = chars.slice(0, missingIndex);
-    const readSeq = speakSequence(before, { ...ANIMAL_VOICE, onCharStart: setActiveIndex });
-    readSeq.done.then(() => {
+    // A quick self-introduction before diving in — without it, the sentence
+    // just started playing out of nowhere with no lead-in.
+    const introSeq = speakSequence([`我是${animalName}，我要來唸這個句子囉！`], ANIMAL_VOICE);
+    let readSeq: SpeakSequenceHandle | null = null;
+    let askSeq: SpeakSequenceHandle | null = null;
+    introSeq.done.then(() => {
       if (cancelledRef.current) return;
-      setActiveIndex(null);
-      setAskingIndex(missingIndex);
-      // Deliberately never speaks the missing character itself — the whole
-      // premise is "I don't know this one", so saying it out loud here
-      // would contradict that. The on-screen text still names it visually.
-      const askSeq = speakSequence(["嗯…這個字我不會念，你可以教我嗎？按住這個字，念給我聽吧！"], ANIMAL_VOICE);
-      askSeq.done.then(() => {
-        if (!cancelledRef.current) setPhase("recording");
+      const before = chars.slice(0, missingIndex);
+      readSeq = speakSequence(before, { ...ANIMAL_VOICE, onCharStart: setActiveIndex });
+      readSeq.done.then(() => {
+        if (cancelledRef.current) return;
+        setActiveIndex(null);
+        setAskingIndex(missingIndex);
+        // Deliberately never speaks the missing character itself — the whole
+        // premise is "I don't know this one", so saying it out loud here
+        // would contradict that. The on-screen text still names it visually.
+        // "嗚嗚嗚" instead of a flat "嗯…" so the TTS reading actually sounds
+        // upset/stuck rather than just a neutral filler sound.
+        askSeq = speakSequence(
+          ["嗚嗚嗚，這個字我不會念，你可以教我嗎？按住這個字，念給我聽吧！"],
+          ANIMAL_VOICE,
+        );
+        askSeq.done.then(() => {
+          if (!cancelledRef.current) setPhase("recording");
+        });
       });
     });
 
     return () => {
       cancelledRef.current = true;
-      readSeq.cancel();
+      introSeq.cancel();
+      readSeq?.cancel();
+      askSeq?.cancel();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sentence.id]);
@@ -127,8 +157,10 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
     setPriming(true);
     // Speak the instruction first, then a clear "叮" ding, THEN actually
     // start the mic — a bare beep on press told her something happened but
-    // not what to do; this tells her what to do and then cues her to start.
-    const primeSeq = speakSequence(["請幫忙唸出這個字"], ANIMAL_VOICE);
+    // not what to do; the instruction now explicitly says to wait for the
+    // ding, so the two cues read as one sequence instead of two unrelated
+    // signals.
+    const primeSeq = speakSequence(["聽到「叮」一聲後，請幫忙唸出這個字"], ANIMAL_VOICE);
     primeSeq.done.then(() => {
       if (cancelledRef.current) return;
       setPriming(false);
@@ -210,34 +242,23 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
       <p style={{ textAlign: "center", fontSize: "2.5rem", margin: "0 0 4px" }} aria-hidden>
         {animal}
       </p>
+      {/* Every variant below shares the exact same font size and minHeight
+          (generous enough for two lines) so switching between them while
+          she's physically holding the character down can never reflow the
+          page — a text swap that grows this block would push the
+          SentenceCard down and slide the character out from under her
+          finger, firing a native pointerleave and ending the press exactly
+          when she's mid-recording. */}
       {recorderState === "recording" ? (
-        <p
-          style={{
-            textAlign: "center",
-            color: "var(--color-danger)",
-            fontWeight: 800,
-            fontSize: "1.3rem",
-            margin: "0 0 12px",
-            minHeight: "1.4em",
-          }}
-        >
+        <p style={{ ...PHASE_TEXT_STYLE, color: "var(--color-danger)", fontWeight: 800 }}>
           🔴 錄音中！念出聲音吧，念完放開
         </p>
       ) : priming ? (
-        <p
-          style={{
-            textAlign: "center",
-            color: "var(--color-primary)",
-            fontWeight: 700,
-            fontSize: "1.1rem",
-            margin: "0 0 12px",
-            minHeight: "1.4em",
-          }}
-        >
-          👂 聽好喔，等「叮」一聲就開始念…
+        <p style={{ ...PHASE_TEXT_STYLE, color: "var(--color-primary)", fontWeight: 700 }}>
+          👂 聽好喔，聽到「叮」一聲後開始念…
         </p>
       ) : (
-        <p style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "0 0 12px", minHeight: "1.4em" }}>
+        <p style={{ ...PHASE_TEXT_STYLE, color: "var(--color-text-muted)" }}>
           {phase === "reading" && "🔊 小動物正在練習念這句話…"}
           {phase === "recording" && `牠卡住了！按住句子裡的「${missingChar}」，教牠怎麼念`}
           {phase === "reciting" && "🔊 小動物在跟著你學…"}
@@ -253,6 +274,33 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
         onCharPressStart={phase === "recording" ? handleCharPressStart : undefined}
         onCharPressEnd={phase === "recording" ? handleCharPressEnd : undefined}
       />
+      {(priming || recorderState === "recording") && (
+        // Her own finger covers the character on the card the instant she
+        // presses it, so there's nothing left to actually read from unless
+        // it's also shown somewhere her hand isn't — a big floating badge
+        // near the top of the screen.
+        <div
+          aria-hidden
+          style={{
+            position: "fixed",
+            top: "10%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1000,
+            background: recorderState === "recording" ? "var(--color-danger)" : "var(--color-primary)",
+            color: "#fff",
+            borderRadius: 24,
+            padding: "18px 40px",
+            fontSize: "4.5rem",
+            fontWeight: 800,
+            lineHeight: 1,
+            boxShadow: "0 12px 32px rgba(0,0,0,0.35)",
+            pointerEvents: "none",
+          }}
+        >
+          {missingChar}
+        </div>
+      )}
       {recorderState === "denied" && (
         <p style={{ textAlign: "center", color: "var(--color-text-muted)", fontSize: "0.85rem", marginTop: 8 }}>
           無法使用麥克風，請檢查瀏覽器的錄音權限設定

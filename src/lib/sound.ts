@@ -91,27 +91,36 @@ export function playPatSound(): void {
   osc.stop(start + 0.12);
 }
 
-/** A single bright "ding" marking the exact moment recording actually
- * begins — played right after a spoken instruction, so a child hears
- * "do the thing" then a clear "go" cue, instead of an unexplained beep. */
+/** A clear, unmistakable bell "叮～" marking the exact moment recording
+ * actually begins — played right after a spoken instruction, so a child
+ * hears "do the thing" then an obvious "go" cue. A fundamental plus a
+ * higher octave overtone (real bells ring with more than one partial) and a
+ * long ringing decay, not a short blip that's easy to miss. */
 export function playDingSound(): void {
   const ctx = getAudioContext();
   if (!ctx) return;
 
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = "sine";
   const start = ctx.currentTime;
-  osc.frequency.setValueAtTime(1568, start); // G6
+  const duration = 0.8;
 
-  gain.gain.setValueAtTime(0, start);
-  gain.gain.linearRampToValueAtTime(0.22, start + 0.015);
-  gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+  [
+    { freq: 1568, gain: 0.32 }, // G6, fundamental
+    { freq: 3136, gain: 0.14 }, // G7, one octave up — the "shimmer"
+  ].forEach(({ freq, gain: peakGain }) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, start);
 
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start(start);
-  osc.stop(start + 0.35);
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(peakGain, start + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + duration);
+  });
 }
 
 /** A gentle "not quite yet" blip for trying to buy a gift without enough

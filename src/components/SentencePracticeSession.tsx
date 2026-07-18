@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { SentenceDoc } from "../types";
 import { DIFFICULTY_LABELS, starsForDifficulty } from "../lib/sentencePractice";
 import { editSentenceText, restoreSentenceStats, saveSentenceReviewResult } from "../lib/store";
-import { playCelebrationSound } from "../lib/sound";
+import { playCelebrationSound, playStarSound } from "../lib/sound";
 import { speak } from "../lib/speech";
 import { StarBurst } from "./StarBurst";
 import { StarTray } from "./StarTray";
@@ -176,6 +176,10 @@ export function SentencePracticeSession({
     setCorrectCount((c) => c + 1);
     setBurstKey((k) => k + 1);
     setPillPulseKey((k) => k + 1);
+    // Fires exactly when the star tray/top counter actually updates (not
+    // inside the mini-game itself), so the sound is unmistakably tied to
+    // the moment a star visibly turns from ☆ to ⭐️, whichever game earned it.
+    playStarSound();
     roundHistoryRef.current.push({ wasCorrect: true, stars });
     try {
       await saveSentenceReviewResult(familyCode, current.id, true);
