@@ -341,3 +341,33 @@ textarea {
     opacity: 0.5;
   }
 }
+
+.char-recording {
+  animation: char-recording-pulse 0.6s ease-in-out infinite;
+  background: var(--color-danger);
+  border-radius: 10px;
+}
+
+@keyframes char-recording-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+.char-blank {
+  animation: char-blank-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes char-blank-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}

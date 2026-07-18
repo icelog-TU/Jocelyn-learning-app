@@ -27,6 +27,19 @@ interface Props {
   /** Character index to pulse blue (e.g. "I don't know this one, can you
    * teach me?" in the teach-the-animal game). */
   askingIndex?: number | null;
+  /** Character index to pulse red (actively recording — press-and-hold in
+   * progress). */
+  recordingIndex?: number | null;
+  /** Called on press-down / press-up (mouse or touch) for a character, e.g.
+   * to record while held rather than requiring a separate button. Renders
+   * that character as a button even without `onCharTap`. */
+  onCharPressStart?: (index: number, char: string) => void;
+  onCharPressEnd?: (index: number, char: string) => void;
+  /** Character index to render as an empty slot (no glyph/zhuyin shown) —
+   * the "fill in the blank" game's drop target. `blankSlotRef` receives the
+   * slot's DOM node so the game can hit-test a drag against it. */
+  blankIndex?: number | null;
+  blankSlotRef?: (el: HTMLElement | null) => void;
 }
 
 /** Unicode's plain punctuation codepoints (，。「」etc.) are designed for
@@ -106,6 +119,11 @@ export function SentenceCard({
   shakeIndex,
   foundIndex,
   askingIndex,
+  recordingIndex,
+  onCharPressStart,
+  onCharPressEnd,
+  blankIndex,
+  blankSlotRef,
 }: Props) {
   const columns = chunkIntoColumns(zhuyinForSentence(sentence), lineBreaks);
   let flatIndex = -1;
@@ -123,6 +141,7 @@ export function SentenceCard({
           maxWidth: "100%",
           margin: "0 auto 20px",
           padding: "4px 2px",
+          userSelect: "none",
         }}
       >
         {columns.map((col, ci) => (
@@ -130,19 +149,27 @@ export function SentenceCard({
             {col.map((c, i) => {
               flatIndex += 1;
               const charIndex = flatIndex;
+              const isBlank = charIndex === blankIndex;
               const charClass = [
                 charIndex === activeIndex ? "char-active" : "",
                 charIndex === shakeIndex ? "char-shake" : "",
                 charIndex === foundIndex ? "char-found" : "",
                 charIndex === askingIndex ? "char-asking" : "",
+                charIndex === recordingIndex ? "char-recording" : "",
+                isBlank ? "char-blank" : "",
               ]
                 .filter(Boolean)
                 .join(" ");
-              const RowTag = onCharTap ? "button" : "div";
-              const rowProps = onCharTap
+              const interactive = Boolean(onCharTap || onCharPressStart);
+              const RowTag = interactive ? "button" : "div";
+              const rowProps = interactive
                 ? {
                     type: "button" as const,
-                    onClick: () => onCharTap(charIndex, c.char),
+                    onClick: onCharTap ? () => onCharTap(charIndex, c.char) : undefined,
+                    onPointerDown: onCharPressStart ? () => onCharPressStart(charIndex, c.char) : undefined,
+                    onPointerUp: onCharPressEnd ? () => onCharPressEnd(charIndex, c.char) : undefined,
+                    onPointerLeave: onCharPressEnd ? () => onCharPressEnd(charIndex, c.char) : undefined,
+                    onPointerCancel: onCharPressEnd ? () => onCharPressEnd(charIndex, c.char) : undefined,
                     "aria-label": `這個字是「${c.char}」`,
                     style: {
                       display: "flex",
@@ -154,11 +181,28 @@ export function SentenceCard({
                       padding: 4,
                       font: "inherit",
                       cursor: "pointer",
+                      touchAction: "none" as const,
                     },
                   }
                 : {
                     style: { display: "flex", flexDirection: "row" as const, alignItems: "center", gap: 2 },
                   };
+              if (isBlank) {
+                return (
+                  <div
+                    key={i}
+                    ref={blankSlotRef}
+                    className={charClass || undefined}
+                    aria-label="這裡缺一個字"
+                    style={{
+                      width: "2.2rem",
+                      height: "2.2rem",
+                      border: "3px dashed var(--color-secondary)",
+                      borderRadius: 10,
+                    }}
+                  />
+                );
+              }
               return (
               <RowTag key={i} className={charClass || undefined} {...rowProps}>
                 <span

@@ -11,6 +11,7 @@ import { StarTray } from "./StarTray";
 import { RecordButton } from "./RecordButton";
 import { FindCharacterGame } from "./games/FindCharacterGame";
 import { TeachAnimalGame } from "./games/TeachAnimalGame";
+import { FillBlankGame } from "./games/FillBlankGame";
 
 /** Budget for the completion-screen star count-up animation, in ms. */
 const CELEBRATION_COUNT_BUDGET_MS = 1400;
@@ -27,8 +28,8 @@ const PRAISE_PHRASES = [
 /** Each round randomly picks one of these ways to interact with the
  * sentence, instead of always doing the same "record yourself reading it"
  * drill — variety keeps it feeling like play rather than a repeated test. */
-type RoundMode = "classic" | "find-char" | "teach-animal";
-const ROUND_MODES: RoundMode[] = ["classic", "find-char", "teach-animal"];
+type RoundMode = "classic" | "find-char" | "teach-animal" | "fill-blank";
+const ROUND_MODES: RoundMode[] = ["classic", "find-char", "teach-animal", "fill-blank"];
 
 function pickRoundMode(): RoundMode {
   return ROUND_MODES[Math.floor(Math.random() * ROUND_MODES.length)];
@@ -264,6 +265,14 @@ export function SentencePracticeSession({
         <TeachAnimalGame
           key={current.id}
           sentence={current}
+          onComplete={() => handleCorrect({ silent: true })}
+          onSkip={handleSkip}
+        />
+      ) : mode === "fill-blank" ? (
+        <FillBlankGame
+          key={current.id}
+          sentence={current}
+          pool={localSession}
           onComplete={() => handleCorrect({ silent: true })}
           onSkip={handleSkip}
         />

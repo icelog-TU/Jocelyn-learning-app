@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-
-type RecordState = "idle" | "recording" | "recorded" | "unsupported" | "denied";
+import { useEffect } from "react";
+import { useAudioRecorder } from "../hooks/useAudioRecorder";
 
 interface Props {
   /** Fired once each time a recording finishes, with a playable object URL
@@ -17,66 +16,23 @@ interface Props {
 }
 
 export function RecordButton({ onRecorded, onUnavailable, label = "🎤 錄音念念看" }: Props) {
-  const [state, setState] = useState<RecordState>(
-    typeof window !== "undefined" && (window.MediaRecorder === undefined || !navigator.mediaDevices)
-      ? "unsupported"
-      : "idle",
-  );
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
+  const { state, audioUrl, start, stop, reset } = useAudioRecorder(onUnavailable);
 
   useEffect(() => {
-    return () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
-    };
+    if (state === "recorded" && audioUrl) onRecorded?.(audioUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (state === "unsupported" || state === "denied") onUnavailable?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
+  }, [state, audioUrl]);
 
   async function startRecording() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      const recorder = new MediaRecorder(stream);
-      chunksRef.current = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
-        setAudioUrl(url);
-        stream.getTracks().forEach((t) => t.stop());
-        setState("recorded");
-        onRecorded?.(url);
-      };
-      mediaRecorderRef.current = recorder;
-      recorder.start();
-      setState("recording");
-    } catch {
-      setState("denied");
-    }
+    await start();
   }
 
-  function stopRecording() {
-    mediaRecorderRef.current?.stop();
+  function handleStop() {
+    stop();
   }
 
   function playRecording() {
     if (audioUrl) new Audio(audioUrl).play().catch(() => {});
-  }
-
-  function recordAgain() {
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
-    setAudioUrl(null);
-    setState("idle");
   }
 
   if (state === "unsupported") return null;
@@ -91,7 +47,7 @@ export function RecordButton({ onRecorded, onUnavailable, label = "🎤 錄音�
 
   if (state === "recording") {
     return (
-      <button className="btn btn-danger" onClick={stopRecording}>
+      <button className="btn btn-danger" onClick={handleStop}>
         ⏹ 停止錄音
       </button>
     );
@@ -103,7 +59,7 @@ export function RecordButton({ onRecorded, onUnavailable, label = "🎤 錄音�
         <button className="btn btn-secondary" onClick={playRecording}>
           ▶️ 播放我的錄音
         </button>
-        <button className="btn btn-outline" onClick={recordAgain}>
+        <button className="btn btn-outline" onClick={reset}>
           🔁 重新錄音
         </button>
       </div>
