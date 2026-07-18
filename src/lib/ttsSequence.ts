@@ -5,10 +5,6 @@ export interface SpeakSequenceOptions {
    * being spoken — lets a caller highlight it in sync with playback,
    * without guessing at timing. */
   onCharStart?: (index: number) => void;
-  /** Extra pause between parts, ms — only used by the per-character
-   * fallback path (see below); the primary single-utterance path has no
-   * artificial gaps at all, since it's one continuous utterance. */
-  gapMs?: number;
 }
 
 export interface SpeakSequenceHandle {
@@ -20,169 +16,62 @@ export interface SpeakSequenceHandle {
   cancel: () => void;
 }
 
-/** How long to wait after speech visibly starts for at least one native
- * `boundary` event before concluding this engine doesn't fire them at all
- * and falling back to the slower per-character method — generous enough
- * that a slow-starting engine isn't mistaken for "unsupported", short
- * enough that a genuinely unsupported engine doesn't leave her waiting on a
- * frozen highlight. */
-const BOUNDARY_FALLBACK_GRACE_MS = 500;
-
 /** Speaks a list of strings in order — typically single characters, so a
- * caller can highlight each one as it's read aloud (karaoke-style).
+ * caller can highlight each one as it's read aloud (karaoke-style), via
+ * `onCharStart` firing on that character's own utterance's real `onstart`
+ * event. Every part gets its own utterance (needed for that per-character
+ * sync to be reliable at all — a single utterance for the whole sentence
+ * would need the browser's `boundary` event to know where it is mid-speech,
+ * and that event turned out to be unsupported/unreliable enough in practice
+ * that it produced a much worse result: audio would start playing the full
+ * sentence fluently, then get abruptly cut off and restarted from scratch,
+ * slowly, the moment the highlight-sync fallback kicked in).
  *
- * For a multi-part call with `onCharStart`, this speaks the whole thing as
- * ONE utterance and drives the highlight off the browser's native
- * `boundary` events, rather than chaining one utterance per character.
- * Chaining used to be the only approach here, but on some devices/engines
- * the per-utterance startup overhead is large enough that it compounds
- * with sentence length into an unbearable "one character... pause... one
- * character... pause" — exactly what made longer sentences impractical to
- * practice. A single utterance has none of that overhead and simply sounds
- * like natural continuous speech.
- *
- * `boundary` event support/granularity isn't universal, though, so if none
- * arrives shortly after speech starts, this automatically falls back to
- * the old chained-per-utterance method (reliable everywhere, just slower)
- * instead of leaving the highlight frozen for the whole sentence. Single-
- * part calls (most spoken prompts, which don't need per-character sync at
- * all) always use the simple chained path directly. */
+ * All utterances are queued with `speechSynthesis.speak()` up front, back
+ * to back, rather than waiting for each one's `onend` before queuing the
+ * next. That removes every artificial gap this code itself would otherwise
+ * add between characters (a JS round-trip, or worse, an explicit pause) —
+ * what's left is only whatever minimal transition the browser's own speech
+ * engine takes between two queued utterances, which is as close to gapless
+ * as the Web Speech API allows for a still-reliable per-character highlight. */
 export function speakSequence(parts: string[], options: SpeakSequenceOptions = {}): SpeakSequenceHandle {
-  const { rate = 0.85, pitch = 1, onCharStart, gapMs = 150 } = options;
+  const { rate = 0.85, pitch = 1, onCharStart } = options;
   let cancelled = false;
   let resolveDone!: () => void;
   const done = new Promise<void>((resolve) => {
     resolveDone = resolve;
   });
 
-  function finish() {
-    resolveDone();
-  }
-
   if (!("speechSynthesis" in window) || parts.length === 0) {
-    finish();
+    resolveDone();
     return { done, cancel: () => {} };
   }
   window.speechSynthesis.cancel();
 
-  function speakChained() {
-    let i = 0;
-    function speakNext() {
-      if (cancelled || i >= parts.length) {
-        finish();
-        return;
-      }
-      const index = i;
-      const utterance = new SpeechSynthesisUtterance(parts[index]);
-      utterance.lang = "zh-TW";
-      utterance.rate = rate;
-      utterance.pitch = pitch;
-      utterance.onstart = () => onCharStart?.(index);
-      utterance.onend = () => {
-        i += 1;
-        if (cancelled) {
-          finish();
-        } else if (gapMs > 0) {
-          window.setTimeout(speakNext, gapMs);
-        } else {
-          speakNext();
-        }
-      };
-      // Some engines fire "error" (e.g. interrupted by a cancel()) instead
-      // of "end" — treat it the same as finishing, so `done` never hangs.
-      utterance.onerror = () => finish();
-      window.speechSynthesis.speak(utterance);
-    }
-    speakNext();
+  let completedCount = 0;
+  function onOneSettled() {
+    completedCount += 1;
+    if (completedCount === parts.length && !cancelled) resolveDone();
   }
 
-  function cancelAll() {
-    cancelled = true;
-    window.speechSynthesis.cancel();
-  }
-
-  if (parts.length === 1 || !onCharStart) {
-    speakChained();
-    return { done, cancel: cancelAll };
-  }
-
-  // Maps a `boundary` event's charIndex (an offset into the joined text)
-  // back to which part of `parts` it falls in.
-  const offsets: number[] = [];
-  let acc = 0;
-  for (const part of parts) {
-    offsets.push(acc);
-    acc += part.length;
-  }
-  function offsetToPartIndex(charIndex: number): number {
-    let idx = 0;
-    for (let i = 0; i < offsets.length; i++) {
-      if (offsets[i] > charIndex) break;
-      idx = i;
-    }
-    return idx;
-  }
-
-  const utterance = new SpeechSynthesisUtterance(parts.join(""));
-  utterance.lang = "zh-TW";
-  utterance.rate = rate;
-  utterance.pitch = pitch;
-
-  let gotBoundary = false;
-  let lastFired = -1;
-  let fallbackTimer: number | null = null;
-  let fallbackTriggered = false;
-
-  function fireUpTo(index: number) {
-    if (index <= lastFired) return;
-    lastFired = index;
-    onCharStart?.(index);
-  }
-  function clearFallbackTimer() {
-    if (fallbackTimer !== null) {
-      window.clearTimeout(fallbackTimer);
-      fallbackTimer = null;
-    }
-  }
-
-  utterance.onboundary = (event) => {
-    gotBoundary = true;
-    clearFallbackTimer();
-    fireUpTo(offsetToPartIndex(event.charIndex ?? 0));
-  };
-  utterance.onstart = () => {
-    fireUpTo(0);
-    fallbackTimer = window.setTimeout(() => {
-      fallbackTimer = null;
-      if (cancelled || gotBoundary) return;
-      // This engine never told us where it is mid-sentence — abandon the
-      // single-utterance attempt and fall back to the reliable
-      // per-character chain rather than leave the highlight stuck on the
-      // first character for the whole sentence.
-      fallbackTriggered = true;
-      window.speechSynthesis.cancel();
-      speakChained();
-    }, BOUNDARY_FALLBACK_GRACE_MS);
-  };
-  utterance.onend = () => {
-    clearFallbackTimer();
-    if (!fallbackTriggered) finish();
-  };
-  utterance.onerror = () => {
-    clearFallbackTimer();
-    // If the fallback already kicked in, this "error" is just this
-    // utterance's own cancel() taking effect — speakChained() is now
-    // running and owns resolving `done`, not us.
-    if (!fallbackTriggered) finish();
-  };
-
-  window.speechSynthesis.speak(utterance);
+  parts.forEach((part, index) => {
+    const utterance = new SpeechSynthesisUtterance(part);
+    utterance.lang = "zh-TW";
+    utterance.rate = rate;
+    utterance.pitch = pitch;
+    utterance.onstart = () => onCharStart?.(index);
+    utterance.onend = onOneSettled;
+    // Some engines fire "error" (e.g. interrupted by a cancel()) instead of
+    // "end" — treat it the same as settling, so `done` never hangs.
+    utterance.onerror = onOneSettled;
+    window.speechSynthesis.speak(utterance);
+  });
 
   return {
     done,
     cancel: () => {
-      clearFallbackTimer();
-      cancelAll();
+      cancelled = true;
+      window.speechSynthesis.cancel();
     },
   };
 }
