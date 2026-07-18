@@ -5,6 +5,7 @@ import { useSentences } from "./hooks/useSentences";
 import { useWeakChars } from "./hooks/useWeakChars";
 import { usePrizes } from "./hooks/usePrizes";
 import { useAffection } from "./hooks/useAffection";
+import { usePlannedChars } from "./hooks/usePlannedChars";
 import { FamilySetupPage } from "./pages/FamilySetupPage";
 import { HomePage } from "./pages/HomePage";
 import { AddCharactersPage } from "./pages/AddCharactersPage";
@@ -12,6 +13,7 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { TeacherPrepPage } from "./pages/TeacherPrepPage";
 import { SentencePracticePage } from "./pages/SentencePracticePage";
 import { SentenceManagePage } from "./pages/SentenceManagePage";
+import { BulkImportSentencesPage } from "./pages/BulkImportSentencesPage";
 import { BatchPracticePage } from "./pages/BatchPracticePage";
 import { GachaPage } from "./pages/GachaPage";
 import { CreatureDetailPage } from "./pages/CreatureDetailPage";
@@ -35,6 +37,7 @@ function App() {
   const { weakChars } = useWeakChars(familyCode);
   const { prizes } = usePrizes(familyCode);
   const { affection } = useAffection(familyCode);
+  const { plannedChars } = usePlannedChars(familyCode);
   const weakCharSet = new Set(weakChars.map((w) => w.hanzi));
 
   function toggleWeakChar(char: string) {
@@ -126,8 +129,13 @@ function App() {
               characters={characters}
               stagedCharacters={stagedCharacters}
               stagedSentences={stagedSentences}
+              plannedChars={plannedChars}
             />
           }
+        />
+        <Route
+          path="/sentences/bulk-import"
+          element={<BulkImportSentencesPage familyCode={familyCode} characters={characters} />}
         />
         <Route
           path="/sentences"

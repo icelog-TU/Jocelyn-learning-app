@@ -43,6 +43,13 @@ import { addPrize, clearAllPrizes, subscribePrizes } from "./prizes";
 import { addPrizeLocal, clearAllPrizesLocal, subscribePrizesLocal } from "./localPrizes";
 import { clearAllAffection, giftToCreature, subscribeAffection } from "./affection";
 import { clearAllAffectionLocal, giftToCreatureLocal, subscribeAffectionLocal } from "./localAffection";
+import { addPlannedCharBatch, movePlannedChar, removePlannedChar, subscribePlannedChars } from "./plannedChars";
+import {
+  addPlannedCharBatchLocal,
+  movePlannedCharLocal,
+  removePlannedCharLocal,
+  subscribePlannedCharsLocal,
+} from "./localPlannedChars";
 import type {
   AffectionDoc,
   CharacterDoc,
@@ -50,6 +57,7 @@ import type {
   CreatureVariant,
   NewCharacterInput,
   NewSentenceEntry,
+  PlannedCharacterDoc,
   SentenceDifficulty,
   SentenceDoc,
   WeakCharDoc,
@@ -252,6 +260,37 @@ export function giveGiftToCreature(
   return isFirebaseConfigured
     ? giftToCreature(familyCode, speciesId, variant, hearts, starsCost)
     : giftToCreatureLocal(familyCode, speciesId, variant, hearts, starsCost);
+}
+
+export function subscribeToPlannedChars(
+  familyCode: string,
+  onChange: (items: PlannedCharacterDoc[]) => void,
+  onError: (err: Error) => void,
+): () => void {
+  if (isFirebaseConfigured) {
+    return subscribePlannedChars(familyCode, onChange, onError);
+  }
+  return subscribePlannedCharsLocal(familyCode, onChange);
+}
+
+export function savePlannedCharBatch(familyCode: string, hanziList: string[]): Promise<void> {
+  return isFirebaseConfigured
+    ? addPlannedCharBatch(familyCode, hanziList)
+    : addPlannedCharBatchLocal(familyCode, hanziList);
+}
+
+export function removePlannedCharacter(familyCode: string, id: string): Promise<void> {
+  return isFirebaseConfigured
+    ? removePlannedChar(familyCode, id)
+    : removePlannedCharLocal(familyCode, id);
+}
+
+export function movePlannedCharacter(
+  familyCode: string,
+  a: { id: string; createdAt: number },
+  b: { id: string; createdAt: number },
+): Promise<void> {
+  return isFirebaseConfigured ? movePlannedChar(familyCode, a, b) : movePlannedCharLocal(familyCode, a, b);
 }
 
 /** Wipes all test/practice progress for a family: every character and

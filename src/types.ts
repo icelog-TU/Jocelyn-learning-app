@@ -67,6 +67,18 @@ export interface WeakCharDoc {
   addedAt: number;
 }
 
+/** A character the parent has decided to teach on some future day, but
+ * hasn't started preparing sentences for yet — a lightweight ordered To-Do
+ * list shown in 老師準備區, separate from CharacterDoc.staged (which is for
+ * characters that already have a full prepared batch of sentences). Order is
+ * encoded by `createdAt` (ascending); reordering rewrites that field rather
+ * than needing a separate position field. */
+export interface PlannedCharacterDoc {
+  id: string;
+  hanzi: string;
+  createdAt: number;
+}
+
 export type CreatureVariant =
   | "grandpa"
   | "grandma"

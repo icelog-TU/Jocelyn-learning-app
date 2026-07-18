@@ -5,6 +5,7 @@ import { peekSentencesLocal } from "./localSentences";
 import { peekWeakCharsLocal } from "./localWeakChars";
 import { peekPrizesLocal } from "./localPrizes";
 import { peekAffectionLocal } from "./localAffection";
+import { peekPlannedCharsLocal } from "./localPlannedChars";
 
 export interface LocalBackupSummary {
   characters: number;
@@ -12,6 +13,7 @@ export interface LocalBackupSummary {
   weakChars: number;
   prizes: number;
   affection: number;
+  plannedChars: number;
 }
 
 const EMPTY_SUMMARY: LocalBackupSummary = {
@@ -20,6 +22,7 @@ const EMPTY_SUMMARY: LocalBackupSummary = {
   weakChars: 0,
   prizes: 0,
   affection: 0,
+  plannedChars: 0,
 };
 
 export function peekLocalBackupSummary(familyCode: string): LocalBackupSummary {
@@ -29,12 +32,13 @@ export function peekLocalBackupSummary(familyCode: string): LocalBackupSummary {
     weakChars: peekWeakCharsLocal(familyCode).length,
     prizes: peekPrizesLocal(familyCode).length,
     affection: peekAffectionLocal(familyCode).length,
+    plannedChars: peekPlannedCharsLocal(familyCode).length,
   };
 }
 
 export function hasLocalDataToBackUp(familyCode: string): boolean {
   const s = peekLocalBackupSummary(familyCode);
-  return s.characters + s.sentences + s.weakChars + s.prizes + s.affection > 0;
+  return s.characters + s.sentences + s.weakChars + s.prizes + s.affection + s.plannedChars > 0;
 }
 
 // Firestore batches top out at 500 writes; leave headroom below that.
@@ -65,9 +69,15 @@ export async function backupLocalDataToCloud(familyCode: string): Promise<LocalB
   const weakChars = peekWeakCharsLocal(familyCode);
   const prizes = peekPrizesLocal(familyCode);
   const affection = peekAffectionLocal(familyCode);
+  const plannedChars = peekPlannedCharsLocal(familyCode);
 
   if (
-    characters.length + sentences.length + weakChars.length + prizes.length + affection.length ===
+    characters.length +
+      sentences.length +
+      weakChars.length +
+      prizes.length +
+      affection.length +
+      plannedChars.length ===
     0
   ) {
     return EMPTY_SUMMARY;
@@ -133,6 +143,14 @@ export async function backupLocalDataToCloud(familyCode: string): Promise<LocalB
       ),
     );
   }
+  for (const p of plannedChars) {
+    writes.push((batch) =>
+      batch.set(doc(db!, "families", familyCode, "plannedChars", p.id), {
+        hanzi: p.hanzi,
+        createdAt: p.createdAt,
+      }),
+    );
+  }
 
   await commitInChunks(writes);
 
@@ -142,5 +160,6 @@ export async function backupLocalDataToCloud(familyCode: string): Promise<LocalB
     weakChars: weakChars.length,
     prizes: prizes.length,
     affection: affection.length,
+    plannedChars: plannedChars.length,
   };
 }

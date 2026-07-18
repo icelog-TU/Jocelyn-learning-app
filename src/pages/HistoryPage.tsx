@@ -150,7 +150,13 @@ function SyncStatusSection({ familyCode }: { familyCode: string }) {
   }
 
   const hasLocal =
-    summary.characters + summary.sentences + summary.weakChars + summary.prizes + summary.affection > 0;
+    summary.characters +
+      summary.sentences +
+      summary.weakChars +
+      summary.prizes +
+      summary.affection +
+      summary.plannedChars >
+    0;
 
   if (!hasLocal && state !== "done") {
     return (
@@ -517,6 +523,9 @@ function SentenceHistory({ sentences }: { sentences: SentenceDoc[] }) {
     <>
       <Link to="/sentences/manage" className="btn btn-primary btn-block" style={{ marginBottom: 10 }}>
         📋 管理句子庫（修改／刪除）
+      </Link>
+      <Link to="/sentences/bulk-import" className="btn btn-outline btn-block" style={{ marginBottom: 10 }}>
+        📥 批次匯入句子
       </Link>
       <Link to="/teacher-prep" className="btn btn-outline btn-block" style={{ marginBottom: 16 }}>
         👩‍🏫 老師準備區

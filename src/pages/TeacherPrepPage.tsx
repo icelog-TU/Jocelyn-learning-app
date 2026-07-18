@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { CharacterDoc, SentenceDifficulty, SentenceDoc } from "../types";
+import type { CharacterDoc, PlannedCharacterDoc, SentenceDifficulty, SentenceDoc } from "../types";
 import { guessZhuyin, zhuyinCandidates } from "../lib/zhuyin";
 import {
   discardStagedCharacterAndSentences,
+  movePlannedCharacter,
   releaseStagedCharacterAndSentences,
+  removePlannedCharacter,
   saveCharacterBatch,
+  savePlannedCharBatch,
   saveSentenceBatch,
 } from "../lib/store";
 import {
@@ -32,6 +35,10 @@ interface Props {
   characters: CharacterDoc[];
   stagedCharacters: CharacterDoc[];
   stagedSentences: SentenceDoc[];
+  /** The parent's ordered To-Do list of characters to teach on future days,
+   * decided before any sentences are written for them — a level "earlier"
+   * than staged characters, which already have a prepared sentence batch. */
+  plannedChars: PlannedCharacterDoc[];
 }
 
 function draftKey(): string {
@@ -52,7 +59,13 @@ function groupStagedByCharacter(stagedCharacters: CharacterDoc[], stagedSentence
     }));
 }
 
-export function TeacherPrepPage({ familyCode, characters, stagedCharacters, stagedSentences }: Props) {
+export function TeacherPrepPage({
+  familyCode,
+  characters,
+  stagedCharacters,
+  stagedSentences,
+  plannedChars,
+}: Props) {
   const [rawInput, setRawInput] = useState("");
   const [pending, setPending] = useState<Pending | null>(null);
   const [saving, setSaving] = useState(false);
@@ -65,6 +78,10 @@ export function TeacherPrepPage({ familyCode, characters, stagedCharacters, stag
   const [genError, setGenError] = useState<string | null>(null);
   const [savingDrafts, setSavingDrafts] = useState(false);
   const [busyCharId, setBusyCharId] = useState<string | null>(null);
+  const [planInput, setPlanInput] = useState("");
+  const [planSaving, setPlanSaving] = useState(false);
+  const [planMsg, setPlanMsg] = useState<string | null>(null);
+  const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
 
   function resetInputFlow() {
     setPending(null);
@@ -75,8 +92,8 @@ export function TeacherPrepPage({ familyCode, characters, stagedCharacters, stag
     setInputMsg(null);
   }
 
-  function handleAddFromInput() {
-    const trimmed = rawInput.trim();
+  function handleAddFromInput(overrideText?: string) {
+    const trimmed = (overrideText ?? rawInput).trim();
     const chars = Array.from(trimmed);
     if (chars.length === 0 || !chars.some((c) => /\p{Script=Han}/u.test(c))) return;
 
@@ -99,6 +116,67 @@ export function TeacherPrepPage({ familyCode, characters, stagedCharacters, stag
     const candidates = chars.length === 1 ? zhuyinCandidates(trimmed) : [guessZhuyin(trimmed)];
     setPending({ hanzi: trimmed, zhuyin: candidates[0], candidates });
     setRawInput("");
+  }
+
+  /** Tapping a planned character jumps straight into the prep flow for it
+   * (as if the parent had just typed it into the input above), then drops it
+   * from the To-Do list — it has now moved from "planned" to "being
+   * prepared". */
+  function startPreparingPlanned(item: PlannedCharacterDoc) {
+    handleAddFromInput(item.hanzi);
+    removePlannedCharacter(familyCode, item.id);
+  }
+
+  async function handleAddPlanned() {
+    const pastedChars = Array.from(planInput).filter((c) => /\p{Script=Han}/u.test(c));
+    const uniqueChars = [...new Set(pastedChars)];
+    const alreadyElsewhere = new Set([
+      ...characters.map((c) => c.hanzi),
+      ...stagedCharacters.map((c) => c.hanzi),
+      ...plannedChars.map((p) => p.hanzi),
+    ]);
+    const newChars = uniqueChars.filter((c) => !alreadyElsewhere.has(c));
+
+    if (uniqueChars.length === 0) {
+      setPlanMsg("沒有偵測到漢字，請確認輸入的內容。");
+      return;
+    }
+    if (newChars.length === 0) {
+      setPlanMsg("這些字都已經學過、準備中，或已經在清單裡了，沒有新增任何字。");
+      return;
+    }
+
+    setPlanSaving(true);
+    try {
+      await savePlannedCharBatch(familyCode, newChars);
+      const skipped = uniqueChars.length - newChars.length;
+      setPlanMsg(`已加入 ${newChars.length} 個字到清單${skipped > 0 ? `，略過 ${skipped} 個重複的字` : ""}。`);
+      setPlanInput("");
+    } finally {
+      setPlanSaving(false);
+    }
+  }
+
+  async function handleRemovePlanned(id: string) {
+    setBusyPlanId(id);
+    try {
+      await removePlannedCharacter(familyCode, id);
+    } finally {
+      setBusyPlanId(null);
+    }
+  }
+
+  async function handleMovePlanned(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= plannedChars.length) return;
+    const a = plannedChars[index];
+    const b = plannedChars[target];
+    setBusyPlanId(a.id);
+    try {
+      await movePlannedCharacter(familyCode, a, b);
+    } finally {
+      setBusyPlanId(null);
+    }
   }
 
   function updatePendingZhuyin(zhuyin: string) {
@@ -240,6 +318,104 @@ export function TeacherPrepPage({ familyCode, characters, stagedCharacters, stag
       </p>
 
       <div className="card" style={{ marginBottom: 16 }}>
+        <p style={{ fontWeight: 700, margin: "0 0 4px" }}>📅 待學習字清單（{plannedChars.length} 個字）</p>
+        <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", margin: "0 0 12px" }}>
+          先把接下來預計要教的字照順序列出來，一目瞭然明天、後天要用什麼字造句；點字可以直接開始準備它的句子
+          （會自動從這個清單移除）。
+        </p>
+
+        {plannedChars.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            {plannedChars.map((item, i) => {
+              const busy = busyPlanId === item.id;
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 0",
+                    borderBottom: i < plannedChars.length - 1 ? "1px solid #f0e6d6" : "none",
+                  }}
+                >
+                  <span style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", minWidth: 20 }}>
+                    {i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => startPreparingPlanned(item)}
+                    disabled={busy}
+                    style={{
+                      flex: 1,
+                      textAlign: "left",
+                      fontSize: "1.3rem",
+                      fontWeight: 700,
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "inherit",
+                      padding: "4px 0",
+                    }}
+                  >
+                    {item.hanzi}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="往前移"
+                    disabled={busy || i === 0}
+                    onClick={() => handleMovePlanned(i, -1)}
+                    style={{ background: "none", border: "none", fontSize: "1.1rem", cursor: "pointer", padding: 4 }}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="往後移"
+                    disabled={busy || i === plannedChars.length - 1}
+                    onClick={() => handleMovePlanned(i, 1)}
+                    style={{ background: "none", border: "none", fontSize: "1.1rem", cursor: "pointer", padding: 4 }}
+                  >
+                    ▼
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`從清單移除「${item.hanzi}」`}
+                    disabled={busy}
+                    onClick={() => handleRemovePlanned(item.id)}
+                    style={{ background: "none", border: "none", fontSize: "1.1rem", cursor: "pointer", padding: 4 }}
+                  >
+                    🗑
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="field" style={{ marginBottom: 8 }}>
+          <label>批次加入字（貼一串字，會自動拆成一個一個）</label>
+          <input
+            value={planInput}
+            onChange={(e) => {
+              setPlanInput(e.target.value);
+              setPlanMsg(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAddPlanned();
+            }}
+            placeholder="例如：安愛天水好學"
+          />
+        </div>
+        <button className="btn btn-outline btn-block" disabled={planSaving} onClick={handleAddPlanned}>
+          {planSaving ? "加入中…" : "加入清單"}
+        </button>
+        {planMsg && (
+          <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", margin: "10px 0 0" }}>{planMsg}</p>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
         <div className="field" style={{ marginBottom: 8 }}>
           <label>輸入要準備的漢字或詞彙</label>
           <input
@@ -251,7 +427,7 @@ export function TeacherPrepPage({ familyCode, characters, stagedCharacters, stag
             placeholder="例如：學 或 毛毛蟲"
           />
         </div>
-        <button className="btn btn-secondary btn-block" onClick={handleAddFromInput}>
+        <button className="btn btn-secondary btn-block" onClick={() => handleAddFromInput()}>
           加入
         </button>
         {inputMsg && (
