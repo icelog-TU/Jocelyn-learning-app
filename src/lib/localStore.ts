@@ -51,6 +51,7 @@ export function subscribeCharactersLocal(
 export async function addCharacterBatchLocal(
   familyCode: string,
   characters: NewCharacterInput[],
+  staged = false,
 ): Promise<void> {
   const now = Date.now();
   const todayKey = dateKey(new Date(now));
@@ -70,12 +71,39 @@ export async function addCharacterBatchLocal(
     addedAt: now,
     addedDateKey: todayKey,
     stats: initialStats,
+    ...(staged ? { staged: true } : {}),
   }));
 
   writeAll(familyCode, [...existing, ...additions]);
 }
 
 export async function deleteCharacterLocal(familyCode: string, characterId: string): Promise<void> {
+  const existing = readAll(familyCode);
+  writeAll(
+    familyCode,
+    existing.filter((c) => c.id !== characterId),
+  );
+}
+
+/** Local-storage counterpart to releaseStagedCharacter(): flips the
+ * character to "learned today" and releases its listed staged sentences in
+ * one localStorage write each. */
+export async function releaseStagedCharacterLocal(
+  familyCode: string,
+  characterId: string,
+): Promise<void> {
+  const now = Date.now();
+  const todayKey = dateKey(new Date(now));
+  const existing = readAll(familyCode);
+  writeAll(
+    familyCode,
+    existing.map((c) =>
+      c.id === characterId ? { ...c, staged: false, addedAt: now, addedDateKey: todayKey } : c,
+    ),
+  );
+}
+
+export async function discardStagedCharacterLocal(familyCode: string, characterId: string): Promise<void> {
   const existing = readAll(familyCode);
   writeAll(
     familyCode,

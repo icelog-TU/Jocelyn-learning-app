@@ -62,6 +62,7 @@ export async function addSentenceBatchLocal(
   entries: NewSentenceEntry[],
   sourceChars: string[],
   difficulty: SentenceDifficulty,
+  staged = false,
 ): Promise<void> {
   const now = Date.now();
   const existing = readAll(familyCode);
@@ -73,8 +74,31 @@ export async function addSentenceBatchLocal(
     origin: entry.origin,
     createdAt: now,
     stats: INITIAL_STATS,
+    ...(staged ? { staged: true } : {}),
   }));
   writeAll(familyCode, [...existing, ...additions]);
+}
+
+/** Local-storage counterpart to the sentence side of releaseStagedCharacter():
+ * clears `staged` and bumps `createdAt` to now for the given sentences, so
+ * they group into "today's batch" in the sentence history. */
+export async function releaseStagedSentencesLocal(familyCode: string, sentenceIds: string[]): Promise<void> {
+  const now = Date.now();
+  const ids = new Set(sentenceIds);
+  const existing = readAll(familyCode);
+  writeAll(
+    familyCode,
+    existing.map((s) => (ids.has(s.id) ? { ...s, staged: false, createdAt: now } : s)),
+  );
+}
+
+export async function discardStagedSentencesLocal(familyCode: string, sentenceIds: string[]): Promise<void> {
+  const ids = new Set(sentenceIds);
+  const existing = readAll(familyCode);
+  writeAll(
+    familyCode,
+    existing.filter((s) => !ids.has(s.id)),
+  );
 }
 
 export async function recordSentenceReviewResultLocal(

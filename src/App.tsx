@@ -9,6 +9,7 @@ import { FamilySetupPage } from "./pages/FamilySetupPage";
 import { HomePage } from "./pages/HomePage";
 import { AddCharactersPage } from "./pages/AddCharactersPage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { TeacherPrepPage } from "./pages/TeacherPrepPage";
 import { SentencePracticePage } from "./pages/SentencePracticePage";
 import { SentenceManagePage } from "./pages/SentenceManagePage";
 import { BatchPracticePage } from "./pages/BatchPracticePage";
@@ -21,8 +22,16 @@ import { saveWeakChar, removeWeakCharEntry } from "./lib/store";
 function App() {
   const { familyCode, authReady, authError, previewNewCode, joinFamily, leaveFamily } =
     useFamily();
-  const { characters, loading } = useCharacters(familyCode);
-  const { sentences, loading: sentencesLoading } = useSentences(familyCode);
+  const { characters: allCharacters, loading } = useCharacters(familyCode);
+  const { sentences: allSentences, loading: sentencesLoading } = useSentences(familyCode);
+  // Characters/sentences prepared ahead of time in 老師準備區 are kept out of
+  // every normal screen (stats, history, practice, AI "known chars" context)
+  // until the parent explicitly releases them — only TeacherPrepPage sees
+  // the staged ones.
+  const characters = allCharacters.filter((c) => !c.staged);
+  const sentences = allSentences.filter((s) => !s.staged);
+  const stagedCharacters = allCharacters.filter((c) => c.staged);
+  const stagedSentences = allSentences.filter((s) => s.staged);
   const { weakChars } = useWeakChars(familyCode);
   const { prizes } = usePrizes(familyCode);
   const { affection } = useAffection(familyCode);
@@ -106,6 +115,17 @@ function App() {
               sentences={sentences}
               weakChars={weakChars}
               familyCode={familyCode}
+            />
+          }
+        />
+        <Route
+          path="/teacher-prep"
+          element={
+            <TeacherPrepPage
+              familyCode={familyCode}
+              characters={characters}
+              stagedCharacters={stagedCharacters}
+              stagedSentences={stagedSentences}
             />
           }
         />

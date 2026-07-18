@@ -48,6 +48,7 @@ export function subscribeCharacters(
             box: data.stats?.box ?? 1,
             lastReviewedAt: data.stats?.lastReviewedAt ?? null,
           },
+          staged: data.staged === true,
         };
       });
       onChange(chars);
@@ -59,6 +60,7 @@ export function subscribeCharacters(
 export async function addCharacterBatch(
   familyCode: string,
   characters: NewCharacterInput[],
+  staged = false,
 ): Promise<void> {
   const batch = writeBatch(db!);
   const now = Date.now();
@@ -82,6 +84,7 @@ export async function addCharacterBatch(
       addedDateKey: todayKey,
       stats: initialStats,
       createdAt: serverTimestamp(),
+      ...(staged ? { staged: true } : {}),
     });
   }
 
@@ -91,6 +94,52 @@ export async function addCharacterBatch(
 export async function deleteCharacterDoc(familyCode: string, characterId: string): Promise<void> {
   if (!db) throw new Error("Firestore is not configured");
   await deleteDoc(doc(db, "families", familyCode, "characters", characterId));
+}
+
+/** Promotes a staged (teacher-prep) character to a normal, currently-being-
+ * learned one: clears its `staged` flag and resets `addedAt`/`addedDateKey`
+ * to today, so it appears as "today's new character" everywhere. Also
+ * releases every staged sentence prepared for it (passed in by the caller,
+ * since it already has the full sentence list loaded) in the same batch,
+ * so the character and its sentences flip over atomically. */
+export async function releaseStagedCharacter(
+  familyCode: string,
+  characterId: string,
+  sentenceIds: string[],
+): Promise<void> {
+  if (!db) throw new Error("Firestore is not configured");
+  const now = Date.now();
+  const todayKey = dateKey(new Date(now));
+  const batch = writeBatch(db);
+  batch.update(doc(db, "families", familyCode, "characters", characterId), {
+    staged: false,
+    addedAt: now,
+    addedDateKey: todayKey,
+  });
+  for (const sentenceId of sentenceIds) {
+    batch.update(doc(db, "families", familyCode, "sentences", sentenceId), {
+      staged: false,
+      createdAt: now,
+    });
+  }
+  await batch.commit();
+}
+
+/** Discards a staged character and all its prepared sentences (passed in by
+ * the caller) without ever exposing them to the child — used when the
+ * parent decides to scrap a prepped batch instead of releasing it. */
+export async function discardStagedCharacter(
+  familyCode: string,
+  characterId: string,
+  sentenceIds: string[],
+): Promise<void> {
+  if (!db) throw new Error("Firestore is not configured");
+  const batch = writeBatch(db);
+  batch.delete(doc(db, "families", familyCode, "characters", characterId));
+  for (const sentenceId of sentenceIds) {
+    batch.delete(doc(db, "families", familyCode, "sentences", sentenceId));
+  }
+  await batch.commit();
 }
 
 /** Resets every character's review progress (and therefore its star

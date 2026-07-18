@@ -16,6 +16,11 @@ interface Props {
   onRegenerate?: () => void;
   regenerating?: boolean;
   saving?: boolean;
+  /** Confirm-button label, as a function of the current draft count (so
+   * callers can phrase it for their own flow — e.g. "開始練習這 N 句" for
+   * immediate practice vs. a "存進老師準備區" phrasing for staging content
+   * ahead of time). Defaults to the practice-flow phrasing. */
+  confirmLabel?: (count: number) => string;
 }
 
 const ORIGIN_LABELS: Record<SentenceOrigin, string> = {
@@ -37,6 +42,7 @@ export function SentenceDraftEditor({
   onRegenerate,
   regenerating,
   saving,
+  confirmLabel,
 }: Props) {
   const [newText, setNewText] = useState("");
 
@@ -128,7 +134,7 @@ export function SentenceDraftEditor({
           onClick={onConfirm}
           disabled={drafts.length === 0 || saving}
         >
-          {saving ? "儲存中…" : `開始練習這 ${drafts.length} 句`}
+          {saving ? "儲存中…" : (confirmLabel ?? ((n) => `開始練習這 ${n} 句`))(drafts.length)}
         </button>
       </div>
     </div>

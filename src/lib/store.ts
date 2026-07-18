@@ -1,8 +1,17 @@
 import { isFirebaseConfigured } from "./firebase";
-import { addCharacterBatch, deleteCharacterDoc, resetAllCharacterStats, subscribeCharacters } from "./characters";
+import {
+  addCharacterBatch,
+  deleteCharacterDoc,
+  discardStagedCharacter,
+  releaseStagedCharacter,
+  resetAllCharacterStats,
+  subscribeCharacters,
+} from "./characters";
 import {
   addCharacterBatchLocal,
   deleteCharacterLocal,
+  discardStagedCharacterLocal,
+  releaseStagedCharacterLocal,
   resetAllCharacterStatsLocal,
   subscribeCharactersLocal,
 } from "./localStore";
@@ -19,7 +28,9 @@ import {
 import {
   addSentenceBatchLocal,
   deleteSentenceLocal,
+  discardStagedSentencesLocal,
   recordSentenceReviewResultLocal,
+  releaseStagedSentencesLocal,
   resetAllSentenceStatsLocal,
   subscribeSentencesLocal,
   updateSentenceDifficultyLocal,
@@ -60,16 +71,51 @@ export function subscribeToCharacters(
 export function saveCharacterBatch(
   familyCode: string,
   characters: NewCharacterInput[],
+  staged = false,
 ): Promise<void> {
   return isFirebaseConfigured
-    ? addCharacterBatch(familyCode, characters)
-    : addCharacterBatchLocal(familyCode, characters);
+    ? addCharacterBatch(familyCode, characters, staged)
+    : addCharacterBatchLocal(familyCode, characters, staged);
 }
 
 export function removeCharacter(familyCode: string, characterId: string): Promise<void> {
   return isFirebaseConfigured
     ? deleteCharacterDoc(familyCode, characterId)
     : deleteCharacterLocal(familyCode, characterId);
+}
+
+/** Promotes a staged (老師準備區) character and its prepared sentences into
+ * the normal learned pool, as if the parent just added them today. */
+export async function releaseStagedCharacterAndSentences(
+  familyCode: string,
+  characterId: string,
+  sentenceIds: string[],
+): Promise<void> {
+  if (isFirebaseConfigured) {
+    await releaseStagedCharacter(familyCode, characterId, sentenceIds);
+  } else {
+    await Promise.all([
+      releaseStagedCharacterLocal(familyCode, characterId),
+      releaseStagedSentencesLocal(familyCode, sentenceIds),
+    ]);
+  }
+}
+
+/** Discards a staged character and its prepared sentences without ever
+ * releasing them to the child. */
+export async function discardStagedCharacterAndSentences(
+  familyCode: string,
+  characterId: string,
+  sentenceIds: string[],
+): Promise<void> {
+  if (isFirebaseConfigured) {
+    await discardStagedCharacter(familyCode, characterId, sentenceIds);
+  } else {
+    await Promise.all([
+      discardStagedCharacterLocal(familyCode, characterId),
+      discardStagedSentencesLocal(familyCode, sentenceIds),
+    ]);
+  }
 }
 
 export function subscribeToSentences(
@@ -88,10 +134,11 @@ export function saveSentenceBatch(
   entries: NewSentenceEntry[],
   sourceChars: string[],
   difficulty: SentenceDifficulty,
+  staged = false,
 ): Promise<void> {
   return isFirebaseConfigured
-    ? addSentenceBatch(familyCode, entries, sourceChars, difficulty)
-    : addSentenceBatchLocal(familyCode, entries, sourceChars, difficulty);
+    ? addSentenceBatch(familyCode, entries, sourceChars, difficulty, staged)
+    : addSentenceBatchLocal(familyCode, entries, sourceChars, difficulty, staged);
 }
 
 export function saveSentenceReviewResult(

@@ -13,6 +13,11 @@ export interface CharacterDoc {
   addedAt: number;
   addedDateKey: string;
   stats: CharacterStats;
+  /** True for characters prepared ahead of time in 老師準備區 that the child
+   * hasn't started learning yet. Staged characters are excluded from every
+   * normal screen (home stats, history, practice, AI "known characters"
+   * context) — they only show up in the teacher-prep page until released. */
+  staged?: boolean;
 }
 
 export interface NewCharacterInput {
@@ -43,6 +48,10 @@ export interface SentenceDoc {
    * fixed-length chunking. Cleared whenever `text` is edited, since old
    * offsets would no longer line up with the new text. */
   lineBreaks?: number[];
+  /** True for sentences prepared ahead of time in 老師準備區, alongside a
+   * staged CharacterDoc, that the child hasn't started learning yet. See
+   * CharacterDoc.staged. */
+  staged?: boolean;
 }
 
 export interface NewSentenceEntry {

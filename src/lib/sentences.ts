@@ -45,6 +45,7 @@ export function subscribeSentences(
             lastReviewedAt: data.stats?.lastReviewedAt ?? null,
           },
           lineBreaks: Array.isArray(data.lineBreaks) ? data.lineBreaks : undefined,
+          staged: data.staged === true,
         };
       });
       onChange(sentences);
@@ -65,6 +66,7 @@ export async function addSentenceBatch(
   entries: NewSentenceEntry[],
   sourceChars: string[],
   difficulty: SentenceDifficulty,
+  staged = false,
 ): Promise<void> {
   const batch = writeBatch(db!);
   const now = Date.now();
@@ -79,6 +81,7 @@ export async function addSentenceBatch(
       origin: entry.origin,
       createdAt: now,
       stats: INITIAL_STATS,
+      ...(staged ? { staged: true } : {}),
     });
   }
 

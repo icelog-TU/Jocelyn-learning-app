@@ -514,8 +514,11 @@ function SentenceHistory({ sentences }: { sentences: SentenceDoc[] }) {
 
   return (
     <>
-      <Link to="/sentences/manage" className="btn btn-primary btn-block" style={{ marginBottom: 16 }}>
+      <Link to="/sentences/manage" className="btn btn-primary btn-block" style={{ marginBottom: 10 }}>
         📋 管理句子庫（修改／刪除）
+      </Link>
+      <Link to="/teacher-prep" className="btn btn-outline btn-block" style={{ marginBottom: 16 }}>
+        👩‍🏫 老師準備區
       </Link>
 
       {groups.length === 0 && (
