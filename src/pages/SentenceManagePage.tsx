@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import type { SentenceDoc, SentenceDifficulty, SentenceOrigin } from "../types";
 import { editSentenceDifficulty, editSentenceLineBreaks, editSentenceText, removeSentence } from "../lib/store";
 import { DIFFICULTY_LABELS, DIFFICULTY_ORDER } from "../lib/sentencePractice";
@@ -17,9 +17,18 @@ interface Props {
 }
 
 export function SentenceManagePage({ sentences, familyCode }: Props) {
+  const location = useLocation();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [breakEditId, setBreakEditId] = useState<string | null>(null);
+  const [filterChar, setFilterChar] = useState(
+    () => (location.state as { filterChar?: string } | null)?.filterChar ?? "",
+  );
+
+  const trimmedFilter = filterChar.trim();
+  const visibleSentences = trimmedFilter
+    ? sentences.filter((s) => s.sourceChars[0]?.includes(trimmedFilter))
+    : sentences;
 
   function startEdit(s: SentenceDoc) {
     setEditingId(s.id);
@@ -46,11 +55,31 @@ export function SentenceManagePage({ sentences, familyCode }: Props) {
         句子不自然或不合理的話，可以在這裡直接修改文字，或刪掉讓 AI 之後不會再選到它。
       </p>
 
+      {sentences.length > 0 && (
+        <div className="card" style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            value={filterChar}
+            onChange={(e) => setFilterChar(e.target.value)}
+            placeholder="輸入目標字篩選（例如「光」）"
+            style={{ flex: 1 }}
+          />
+          {trimmedFilter && (
+            <button className="btn btn-outline" style={{ flexShrink: 0 }} onClick={() => setFilterChar("")}>
+              清除
+            </button>
+          )}
+        </div>
+      )}
+
       {sentences.length === 0 && (
         <div className="empty-state card">還沒有任何句子，去「新增」或「複習」頁面讓 AI 生成第一批吧！</div>
       )}
 
-      {sentences.map((s) => (
+      {sentences.length > 0 && visibleSentences.length === 0 && (
+        <div className="empty-state card">沒有符合「{trimmedFilter}」的句子。</div>
+      )}
+
+      {visibleSentences.map((s) => (
         <div className="card" key={s.id} style={{ marginBottom: 12 }}>
           {editingId === s.id ? (
             <>

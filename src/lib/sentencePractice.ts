@@ -32,6 +32,27 @@ export function computeTotalStars(characters: CharacterDoc[], sentences: Sentenc
   return characters.reduce((sum, c) => sum + c.stats.correctCount, 0) + sentenceStars;
 }
 
+/** The most recently-taught target characters/words (i.e. `sourceChars[0]`
+ * of each day's generated batch), most recent first, capped at `limit`.
+ * This is a pure view over `sentences` — nothing is deleted when a
+ * character ages out past the limit, it just stops appearing here, while
+ * its sentences stay fully intact in the regular history/management pages. */
+export function recentTargetChars(sentences: SentenceDoc[], limit = 10): string[] {
+  const latestByChar = new Map<string, number>();
+  for (const s of sentences) {
+    const char = s.sourceChars[0];
+    if (!char) continue;
+    const existing = latestByChar.get(char);
+    if (existing === undefined || s.createdAt > existing) {
+      latestByChar.set(char, s.createdAt);
+    }
+  }
+  return [...latestByChar.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([char]) => char);
+}
+
 export async function generateSentences(
   knownChars: string[],
   targetText: string,
