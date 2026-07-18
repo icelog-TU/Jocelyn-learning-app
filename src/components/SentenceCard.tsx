@@ -40,6 +40,13 @@ interface Props {
    * slot's DOM node so the game can hit-test a drag against it. */
   blankIndex?: number | null;
   blankSlotRef?: (el: HTMLElement | null) => void;
+  /** Makes the "🔊 聽整句" button glow/pulse to draw her attention to it
+   * (e.g. right after "字寶寶不見了" — she needs a nudge toward the one
+   * button that can help her figure out the missing character). */
+  pulseListenButton?: boolean;
+  /** Called (in addition to actually speaking the sentence) when "聽整句"
+   * is tapped — lets a caller turn off `pulseListenButton` once she's used it. */
+  onListenAll?: () => void;
 }
 
 /** Unicode's plain punctuation codepoints (，。「」etc.) are designed for
@@ -124,6 +131,8 @@ export function SentenceCard({
   onCharPressEnd,
   blankIndex,
   blankSlotRef,
+  pulseListenButton,
+  onListenAll,
 }: Props) {
   const columns = chunkIntoColumns(zhuyinForSentence(sentence), lineBreaks);
   let flatIndex = -1;
@@ -277,7 +286,14 @@ export function SentenceCard({
         ))}
       </div>
       <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-        <button className="btn btn-outline" onClick={() => speak(sentence, { rate: 0.8 })} aria-label="播放整句發音">
+        <button
+          className={`btn btn-outline${pulseListenButton ? " btn-pulse-glow" : ""}`}
+          onClick={() => {
+            speak(sentence, { rate: 0.8 });
+            onListenAll?.();
+          }}
+          aria-label="播放整句發音"
+        >
           🔊 聽整句
         </button>
         {extraActions}

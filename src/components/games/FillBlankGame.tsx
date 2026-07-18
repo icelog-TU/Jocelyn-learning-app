@@ -61,6 +61,7 @@ export function FillBlankGame({ sentence, pool, onComplete, onSkip }: Props) {
 
   const [resolved, setResolved] = useState(false);
   const [wrongKey, setWrongKey] = useState(0);
+  const [promptPulse, setPromptPulse] = useState(false);
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragStartRef = useRef<{ x: number; y: number; key: string; char: string } | null>(null);
   const blankSlotElRef = useRef<HTMLElement | null>(null);
@@ -72,7 +73,16 @@ export function FillBlankGame({ sentence, pool, onComplete, onSkip }: Props) {
       onSkip();
       return;
     }
-    speakSequence(["哇，字寶寶不見了，請幫字寶寶回家！"]);
+    setPromptPulse(false);
+    const introSeq = speakSequence(["哇，字寶寶不見了，請幫字寶寶回家！"]);
+    // Nudges her toward "聽整句" right after the intro — hearing the whole
+    // sentence read aloud is how she figures out which character belongs in
+    // the gap, and the glowing button makes that path obvious instead of
+    // leaving her to discover it on her own.
+    introSeq.done.then(() => {
+      setPromptPulse(true);
+      speakSequence(["按我聽整句話"]);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sentence.id, playable]);
 
@@ -134,6 +144,8 @@ export function FillBlankGame({ sentence, pool, onComplete, onSkip }: Props) {
           blankSlotElRef.current = el;
         }}
         foundIndex={resolved ? blankIndex : null}
+        pulseListenButton={!resolved && promptPulse}
+        onListenAll={() => setPromptPulse(false)}
       />
       <div
         key={wrongKey}

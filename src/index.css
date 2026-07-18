@@ -282,6 +282,24 @@ textarea {
   }
 }
 
+/* Draws attention to the "聽整句" button when a game wants to nudge her
+ * toward it (e.g. right after "字寶寶不見了" in the fill-blank game). */
+.btn-pulse-glow {
+  animation: btn-glow-pulse 1s ease-in-out infinite;
+}
+
+@keyframes btn-glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 138, 61, 0.55);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(255, 138, 61, 0);
+    transform: scale(1.06);
+  }
+}
+
 /* !important on background/color throughout this block: these classes are
  * applied to the same element as SentenceCard's tappable-character button,
  * whose own inline style resets `background` to "none" — inline styles

@@ -91,32 +91,27 @@ export function playPatSound(): void {
   osc.stop(start + 0.12);
 }
 
-/** A short, unmistakable double-beep for "recording has actually started,
- * speak now" — distinct from every other effect (higher, sharper, exactly
- * two identical beeps) so it reads as "go" rather than blending in with the
- * softer chimes used elsewhere. */
-export function playRecordStartSound(): void {
+/** A single bright "ding" marking the exact moment recording actually
+ * begins — played right after a spoken instruction, so a child hears
+ * "do the thing" then a clear "go" cue, instead of an unexplained beep. */
+export function playDingSound(): void {
   const ctx = getAudioContext();
   if (!ctx) return;
 
-  const startTime = ctx.currentTime;
-  [0, 0.14].forEach((offset) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "square";
-    osc.frequency.value = 1200;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+  const start = ctx.currentTime;
+  osc.frequency.setValueAtTime(1568, start); // G6
 
-    const noteStart = startTime + offset;
-    const noteEnd = noteStart + 0.09;
-    gain.gain.setValueAtTime(0, noteStart);
-    gain.gain.linearRampToValueAtTime(0.18, noteStart + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.001, noteEnd);
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(0.22, start + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(noteStart);
-    osc.stop(noteEnd);
-  });
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(start);
+  osc.stop(start + 0.35);
 }
 
 /** A gentle "not quite yet" blip for trying to buy a gift without enough

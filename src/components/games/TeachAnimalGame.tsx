@@ -4,7 +4,7 @@ import { SentenceCard } from "../SentenceCard";
 import { useAudioRecorder } from "../../hooks/useAudioRecorder";
 import { speakSequence } from "../../lib/ttsSequence";
 import { playAudioUrl } from "../../lib/audioPlayback";
-import { playRecordStartSound, playStarSound } from "../../lib/sound";
+import { playDingSound, playStarSound } from "../../lib/sound";
 import { pickAnimalEmoji, pickTargetIndex } from "../../lib/sentenceGames";
 
 interface Props {
@@ -49,8 +49,17 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [askingIndex, setAskingIndex] = useState<number | null>(null);
   const [foundIndex, setFoundIndex] = useState<number | null>(null);
+  // True during the spoken "請幫忙唸出這個字" instruction that plays right
+  // after she presses down and before the mic actually starts — without
+  // this gap the only feedback on press was a bare beep, which a 5-year-old
+  // has no way to interpret as "say the word now".
+  const [priming, setPriming] = useState(false);
   const cancelledRef = useRef(false);
   const pressStartRef = useRef<number | null>(null);
+  // Set if she lets go while the priming instruction is still playing (i.e.
+  // before the mic ever actually started) — lets handleCharPressStart's
+  // callback know not to start recording once the instruction finishes.
+  const releasedDuringPrimeRef = useRef(false);
 
   const {
     state: recorderState,
@@ -71,6 +80,8 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
     setActiveIndex(null);
     setAskingIndex(null);
     setFoundIndex(null);
+    setPriming(false);
+    releasedDuringPrimeRef.current = false;
 
     const before = chars.slice(0, missingIndex);
     const readSeq = speakSequence(before, { ...ANIMAL_VOICE, onCharStart: setActiveIndex });
@@ -110,23 +121,36 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, recorderState, audioUrl]);
 
-  // Fires the instant the microphone actually starts capturing — the clear
-  // "go" signal she asked for, since the press itself only requests
-  // permission and there's no other reliable way to know recording has
-  // really begun (especially the first time, when the browser's own
-  // permission prompt adds an unpredictable delay after the press).
-  useEffect(() => {
-    if (recorderState === "recording") playRecordStartSound();
-  }, [recorderState]);
-
   function handleCharPressStart(index: number) {
-    if (phase !== "recording" || index !== missingIndex || recorderState !== "idle") return;
-    pressStartRef.current = Date.now();
-    startRecording();
+    if (phase !== "recording" || index !== missingIndex || recorderState !== "idle" || priming) return;
+    releasedDuringPrimeRef.current = false;
+    setPriming(true);
+    // Speak the instruction first, then a clear "叮" ding, THEN actually
+    // start the mic — a bare beep on press told her something happened but
+    // not what to do; this tells her what to do and then cues her to start.
+    const primeSeq = speakSequence(["請幫忙唸出這個字"], ANIMAL_VOICE);
+    primeSeq.done.then(() => {
+      if (cancelledRef.current) return;
+      setPriming(false);
+      if (releasedDuringPrimeRef.current) {
+        // She let go before the mic ever started — nothing was recorded,
+        // so just nudge her to hold through the ding and try again.
+        speakSequence(["要按住喔，再試一次看看"], ANIMAL_VOICE);
+        return;
+      }
+      playDingSound();
+      pressStartRef.current = Date.now();
+      startRecording();
+    });
   }
 
   function handleCharPressEnd(index: number) {
-    if (phase !== "recording" || index !== missingIndex || recorderState !== "recording") return;
+    if (index !== missingIndex) return;
+    if (priming) {
+      releasedDuringPrimeRef.current = true;
+      return;
+    }
+    if (phase !== "recording" || recorderState !== "recording") return;
     stopRecording();
   }
 
@@ -138,6 +162,14 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
 
     const thanksSeq = speakSequence(["謝謝你教我！"], ANIMAL_VOICE);
     thanksSeq.done
+      .then(() => {
+        if (cancelledRef.current) return undefined;
+        // A clear "here goes" line before the animal launches into the
+        // sentence — without it, the recitation started abruptly right
+        // after "謝謝你教我！" and was easy to miss the start of.
+        const tryingSeq = speakSequence(["我來試試看，你聽聽看對不對！"], ANIMAL_VOICE);
+        return tryingSeq.done;
+      })
       .then(() => {
         if (cancelledRef.current) return undefined;
         setFoundIndex(null);
@@ -190,6 +222,19 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
           }}
         >
           🔴 錄音中！念出聲音吧，念完放開
+        </p>
+      ) : priming ? (
+        <p
+          style={{
+            textAlign: "center",
+            color: "var(--color-primary)",
+            fontWeight: 700,
+            fontSize: "1.1rem",
+            margin: "0 0 12px",
+            minHeight: "1.4em",
+          }}
+        >
+          👂 聽好喔，等「叮」一聲就開始念…
         </p>
       ) : (
         <p style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "0 0 12px", minHeight: "1.4em" }}>

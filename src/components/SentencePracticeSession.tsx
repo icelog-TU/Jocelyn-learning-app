@@ -3,12 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import type { SentenceDoc } from "../types";
 import { DIFFICULTY_LABELS, starsForDifficulty } from "../lib/sentencePractice";
 import { editSentenceText, restoreSentenceStats, saveSentenceReviewResult } from "../lib/store";
-import { playCelebrationSound, playStarSound } from "../lib/sound";
+import { playCelebrationSound } from "../lib/sound";
 import { speak } from "../lib/speech";
-import { SentenceCard } from "./SentenceCard";
 import { StarBurst } from "./StarBurst";
 import { StarTray } from "./StarTray";
-import { RecordButton } from "./RecordButton";
 import { FindCharacterGame } from "./games/FindCharacterGame";
 import { TeachAnimalGame } from "./games/TeachAnimalGame";
 import { FillBlankGame } from "./games/FillBlankGame";
@@ -19,41 +17,11 @@ import { shuffled } from "../lib/sentenceGames";
 /** Budget for the completion-screen star count-up animation, in ms. */
 const CELEBRATION_COUNT_BUDGET_MS = 1400;
 
-const PRAISE_PHRASES = [
-  "哇～你好棒！",
-  "太厲害了！",
-  "念得好清楚喔！",
-  "你是小天才！",
-  "超級棒的！",
-  "念得好流利！",
-];
-
-/** Each round picks one of these ways to interact with the sentence, instead
- * of always doing the same "record yourself reading it" drill — variety
- * keeps it feeling like play rather than a repeated test. */
-type RoundMode = "classic" | "find-char" | "teach-animal" | "fill-blank" | "word-order" | "who-read-right";
-const ROUND_MODES: RoundMode[] = [
-  "classic",
-  "find-char",
-  "teach-animal",
-  "fill-blank",
-  "word-order",
-  "who-read-right",
-];
-
-/** Minimum time to keep "我念對了" disabled after a sentence appears, so
- * tapping it the instant it renders (without reading anything) can't earn a
- * star. Scales with sentence length; capped so long sentences don't force
- * an annoyingly long wait. */
-function minReadWaitMs(text: string): number {
-  const len = Array.from(text).length;
-  return Math.min(6000, Math.max(1200, len * 400));
-}
-
-function speakPraise() {
-  const phrase = PRAISE_PHRASES[Math.floor(Math.random() * PRAISE_PHRASES.length)];
-  speak(phrase, { rate: 1, pitch: 1.3 });
-}
+/** Each round picks one of these ways to interact with the sentence — a
+ * batch is always 5 sentences, so with 5 modes the shuffle bag lands each
+ * one exactly once per batch instead of ever repeating within it. */
+type RoundMode = "find-char" | "teach-animal" | "fill-blank" | "word-order" | "who-read-right";
+const ROUND_MODES: RoundMode[] = ["find-char", "teach-animal", "fill-blank", "word-order", "who-read-right"];
 
 interface Props {
   session: SentenceDoc[];
@@ -90,10 +58,7 @@ export function SentencePracticeSession({
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
-  const [minWaitDone, setMinWaitDone] = useState(false);
-  const [hasRecorded, setHasRecorded] = useState(false);
-  const [micRequired, setMicRequired] = useState(true);
-  const [mode, setMode] = useState<RoundMode>("classic");
+  const [mode, setMode] = useState<RoundMode>("find-char");
 
   const isComplete = index >= localSession.length;
   const current = localSession[index];
@@ -108,7 +73,7 @@ export function SentencePracticeSession({
    * leaving stale progress behind. */
   const roundHistoryRef = useRef<Array<{ wasCorrect: boolean; stars: number }>>([]);
   /** A "shuffle bag" of modes: refilled with a freshly-shuffled copy of all
-   * four whenever it runs dry, so every mode is guaranteed to appear before
+   * five whenever it runs dry, so every mode is guaranteed to appear before
    * any of them repeats — plain independent random picks could otherwise
    * streak the same mode for several sentences in a row, which is exactly
    * what felt repetitive/boring in practice. */
@@ -128,13 +93,9 @@ export function SentencePracticeSession({
     // can't bleed into this new round's screen and sound like it belongs
     // to whatever is now on screen.
     window.speechSynthesis?.cancel();
-    setMinWaitDone(false);
-    setHasRecorded(false);
     setMode(nextRoundMode());
-    const timer = window.setTimeout(() => setMinWaitDone(true), minReadWaitMs(current.text));
     return () => {
       window.speechSynthesis?.cancel();
-      window.clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id]);
@@ -207,7 +168,7 @@ export function SentencePracticeSession({
     }
   }
 
-  async function handleCorrect(opts: { silent?: boolean } = {}) {
+  async function handleCorrect() {
     if (busy) return;
     setBusy(true);
     const stars = starsForDifficulty(current.difficulty);
@@ -216,10 +177,6 @@ export function SentencePracticeSession({
     setBurstKey((k) => k + 1);
     setPillPulseKey((k) => k + 1);
     roundHistoryRef.current.push({ wasCorrect: true, stars });
-    if (!opts.silent) {
-      playStarSound();
-      speakPraise();
-    }
     try {
       await saveSentenceReviewResult(familyCode, current.id, true);
     } finally {
@@ -274,8 +231,11 @@ export function SentencePracticeSession({
           {index + 1} / {localSession.length}
         </span>
         <span className="pill">{DIFFICULTY_LABELS[current.difficulty ?? "medium"]}</span>
-        <span key={pillPulseKey} className="pill pill-pop">
-          ⭐️ {starsEarned}
+        <span style={{ position: "relative" }}>
+          <span key={pillPulseKey} className="pill pill-pop">
+            ⭐️ {starsEarned}
+          </span>
+          <StarBurst burstKey={burstKey} />
         </span>
       </div>
 
@@ -333,77 +293,43 @@ export function SentencePracticeSession({
           </div>
         </div>
       ) : mode === "find-char" ? (
-        <FindCharacterGame
-          key={current.id}
-          sentence={current}
-          onComplete={() => handleCorrect({ silent: true })}
-          onSkip={handleSkip}
-        />
+        <FindCharacterGame key={current.id} sentence={current} onComplete={handleCorrect} onSkip={handleSkip} />
       ) : mode === "teach-animal" ? (
-        <TeachAnimalGame
-          key={current.id}
-          sentence={current}
-          onComplete={() => handleCorrect({ silent: true })}
-          onSkip={handleSkip}
-        />
+        <TeachAnimalGame key={current.id} sentence={current} onComplete={handleCorrect} onSkip={handleSkip} />
       ) : mode === "fill-blank" ? (
         <FillBlankGame
           key={current.id}
           sentence={current}
           pool={localSession}
-          onComplete={() => handleCorrect({ silent: true })}
+          onComplete={handleCorrect}
           onSkip={handleSkip}
         />
       ) : mode === "word-order" ? (
-        <WordOrderGame
-          key={current.id}
-          sentence={current}
-          onComplete={() => handleCorrect({ silent: true })}
-          onSkip={handleSkip}
-        />
-      ) : mode === "who-read-right" ? (
-        <WhoReadItRightGame
-          key={current.id}
-          sentence={current}
-          onComplete={() => handleCorrect({ silent: true })}
-          onSkip={handleSkip}
-        />
+        <WordOrderGame key={current.id} sentence={current} onComplete={handleCorrect} onSkip={handleSkip} />
       ) : (
-        <>
-          <div style={{ position: "relative" }}>
-            <SentenceCard
-              sentence={current.text}
-              lineBreaks={current.lineBreaks}
-              extraActions={
-                <RecordButton
-                  key={current.id}
-                  onRecorded={() => setHasRecorded(true)}
-                  onUnavailable={() => setMicRequired(false)}
-                />
-              }
-            />
-            <StarBurst burstKey={burstKey} />
-          </div>
-          <div style={{ textAlign: "center", margin: "8px 0 0" }}>
-            <button
-              onClick={startEdit}
-              style={{
-                background: "none",
-                border: "none",
-                color: "var(--color-secondary)",
-                fontSize: "0.85rem",
-                textDecoration: "underline",
-                cursor: "pointer",
-                padding: 4,
-              }}
-            >
-              ✏️ 這句可以改得更好？點這裡修改
-            </button>
-          </div>
-        </>
+        <WhoReadItRightGame key={current.id} sentence={current} onComplete={handleCorrect} onSkip={handleSkip} />
       )}
 
-      {!editing && mode === "classic" && onToggleWeakChar && (
+      {!editing && (
+        <div style={{ textAlign: "center", margin: "8px 0 0" }}>
+          <button
+            onClick={startEdit}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--color-secondary)",
+              fontSize: "0.85rem",
+              textDecoration: "underline",
+              cursor: "pointer",
+              padding: 4,
+            }}
+          >
+            ✏️ 這句可以改得更好？點這裡修改
+          </button>
+        </div>
+      )}
+
+      {!editing && onToggleWeakChar && (
         <div style={{ margin: "12px 0" }}>
           <p
             style={{
@@ -439,33 +365,6 @@ export function SentencePracticeSession({
             })}
           </div>
         </div>
-      )}
-
-      {!editing && mode === "classic" && (
-        <>
-          <p style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "16px 0" }}>
-            請她把整句話念出來，念對了嗎？
-          </p>
-
-          {(!minWaitDone || (micRequired && !hasRecorded)) && (
-            <p style={{ textAlign: "center", color: "var(--color-secondary)", fontSize: "0.85rem", margin: "0 0 12px" }}>
-              {!minWaitDone ? "再唸一下下…" : "請先按上面「🎤 錄音念念看」念一次，才能按我念對了喔"}
-            </p>
-          )}
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="btn btn-outline btn-block" disabled={busy} onClick={handleSkip}>
-              先跳過
-            </button>
-            <button
-              className="btn btn-primary btn-block"
-              disabled={busy || !minWaitDone || (micRequired && !hasRecorded)}
-              onClick={() => handleCorrect()}
-            >
-              🎉 我念對了！
-            </button>
-          </div>
-        </>
       )}
 
       {activeFooter}

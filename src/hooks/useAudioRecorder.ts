@@ -12,9 +12,9 @@ export interface UseAudioRecorder {
   reset: () => void;
 }
 
-/** Shared microphone-recording logic behind RecordButton's UI chrome and
- * any custom recording interaction (e.g. press-and-hold a character) that
- * needs the same start/stop/blob-url behavior without that chrome. */
+/** Shared microphone-recording logic behind press-and-hold recording
+ * interactions (e.g. holding a character in the "教小動物" game), providing
+ * start/stop/blob-url behavior without any UI chrome of its own. */
 export function useAudioRecorder(onUnavailable?: () => void): UseAudioRecorder {
   const [state, setState] = useState<RecorderState>(
     typeof window !== "undefined" && (window.MediaRecorder === undefined || !navigator.mediaDevices)
