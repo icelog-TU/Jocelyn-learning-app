@@ -137,6 +137,16 @@ export async function updateSentenceDifficultyLocal(
   writeAll(familyCode, updated);
 }
 
+export async function updateSentenceStatsLocal(
+  familyCode: string,
+  sentenceId: string,
+  stats: CharacterStats,
+): Promise<void> {
+  const existing = readAll(familyCode);
+  const updated = existing.map((s) => (s.id === sentenceId ? { ...s, stats } : s));
+  writeAll(familyCode, updated);
+}
+
 export async function updateSentenceLineBreaksLocal(
   familyCode: string,
   sentenceId: string,

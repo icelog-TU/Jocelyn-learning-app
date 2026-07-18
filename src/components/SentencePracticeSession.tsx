@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { SentenceDoc } from "../types";
 import { DIFFICULTY_LABELS, starsForDifficulty } from "../lib/sentencePractice";
-import { editSentenceText, saveSentenceReviewResult } from "../lib/store";
+import { editSentenceText, restoreSentenceStats, saveSentenceReviewResult } from "../lib/store";
 import { playCelebrationSound, playStarSound } from "../lib/sound";
 import { speak } from "../lib/speech";
 import { SentenceCard } from "./SentenceCard";
@@ -96,6 +96,11 @@ export function SentencePracticeSession({
   const [celebrateKey, setCelebrateKey] = useState(0);
   const celebratedRef = useRef(false);
   const starCountTimerRef = useRef<number | null>(null);
+  /** One entry per round already answered/skipped, in order — lets "回上一句"
+   * undo exactly what that round did (the stars/progress it added, and the
+   * sentence's persisted stats) instead of just rewinding the index and
+   * leaving stale progress behind. */
+  const roundHistoryRef = useRef<Array<{ wasCorrect: boolean; stars: number }>>([]);
 
   useEffect(() => {
     if (isComplete) return;
@@ -183,6 +188,7 @@ export function SentencePracticeSession({
     setCorrectCount((c) => c + 1);
     setBurstKey((k) => k + 1);
     setPillPulseKey((k) => k + 1);
+    roundHistoryRef.current.push({ wasCorrect: true, stars });
     if (!opts.silent) {
       playStarSound();
       speakPraise();
@@ -199,7 +205,32 @@ export function SentencePracticeSession({
 
   function handleSkip() {
     if (busy) return;
+    roundHistoryRef.current.push({ wasCorrect: false, stars: 0 });
     setIndex((i) => i + 1);
+  }
+
+  /** Undoes the previous round entirely — not just moving the index back,
+   * but also reverting the stars/progress it added and, if it was marked
+   * correct, restoring that sentence's persisted stats to what they were
+   * before. Exists mainly for the "教小動物" recording: releasing the press
+   * a moment too early still finishes the round with a blank clip, and by
+   * the time that's noticed the session has already moved on. */
+  async function handleGoBack() {
+    if (busy || index === 0) return;
+    const entry = roundHistoryRef.current.pop();
+    if (!entry) return;
+    setBusy(true);
+    try {
+      if (entry.wasCorrect) {
+        setStarsEarned((s) => s - entry.stars);
+        setCorrectCount((c) => c - 1);
+        const previous = localSession[index - 1];
+        await restoreSentenceStats(familyCode, previous.id, previous.stats);
+      }
+      setIndex((i) => Math.max(0, i - 1));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -220,6 +251,26 @@ export function SentencePracticeSession({
           ⭐️ {starsEarned}
         </span>
       </div>
+
+      {index > 0 && (
+        <div style={{ textAlign: "center", marginBottom: 8 }}>
+          <button
+            onClick={handleGoBack}
+            disabled={busy}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--color-text-muted)",
+              fontSize: "0.85rem",
+              textDecoration: "underline",
+              cursor: "pointer",
+              padding: 4,
+            }}
+          >
+            ⬅️ 回上一句（重來一次）
+          </button>
+        </div>
+      )}
 
       <StarTray total={localSession.length} filled={correctCount} />
 

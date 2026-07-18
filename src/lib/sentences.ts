@@ -134,6 +134,19 @@ export async function updateSentenceDifficulty(
   await updateDoc(doc(db, "families", familyCode, "sentences", sentenceId), { difficulty });
 }
 
+/** Overwrites a sentence's review stats wholesale — used to undo a review
+ * result that shouldn't have counted (e.g. a "教小動物" recording that got
+ * released too early to actually be taught, but still advanced the round),
+ * by restoring the exact stats snapshot from before that review. */
+export async function updateSentenceStats(
+  familyCode: string,
+  sentenceId: string,
+  stats: CharacterStats,
+): Promise<void> {
+  if (!db) throw new Error("Firestore is not configured");
+  await updateDoc(doc(db, "families", familyCode, "sentences", sentenceId), { stats });
+}
+
 export async function updateSentenceLineBreaks(
   familyCode: string,
   sentenceId: string,

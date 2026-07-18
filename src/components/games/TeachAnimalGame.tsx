@@ -18,6 +18,12 @@ interface Props {
  * narration. */
 const ANIMAL_VOICE = { pitch: 1.6, rate: 0.95 };
 
+/** Below this hold duration (ms), a press is almost certainly an accidental
+ * tap-and-release rather than a real attempt to say the character out loud
+ * — discard the (likely blank) recording and ask her to try again instead
+ * of letting the animal "learn" from silence. */
+const MIN_HOLD_MS = 500;
+
 type Phase = "reading" | "recording" | "reciting";
 
 /** "教小動物" — role reversal: instead of the child being asked to perform,
@@ -44,8 +50,15 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
   const [askingIndex, setAskingIndex] = useState<number | null>(null);
   const [foundIndex, setFoundIndex] = useState<number | null>(null);
   const cancelledRef = useRef(false);
+  const pressStartRef = useRef<number | null>(null);
 
-  const { state: recorderState, audioUrl, start: startRecording, stop: stopRecording } = useAudioRecorder(onSkip);
+  const {
+    state: recorderState,
+    audioUrl,
+    start: startRecording,
+    stop: stopRecording,
+    reset: resetRecording,
+  } = useAudioRecorder(onSkip);
 
   useEffect(() => {
     if (missingIndex === null || missingChar === null) {
@@ -83,14 +96,23 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
 
   // Fires once the press-and-hold recording finishes.
   useEffect(() => {
-    if (phase === "recording" && recorderState === "recorded" && audioUrl) {
-      handleRecorded(audioUrl);
+    if (phase !== "recording" || recorderState !== "recorded" || !audioUrl) return;
+    const heldMs = pressStartRef.current === null ? Infinity : Date.now() - pressStartRef.current;
+    if (heldMs < MIN_HOLD_MS) {
+      // Almost certainly an accidental tap-and-release, not a real attempt
+      // to say the word — discard the (likely blank) clip and ask again
+      // rather than letting the animal "learn" from silence.
+      resetRecording();
+      speakSequence(["要按久一點，再念一次看看喔"], ANIMAL_VOICE);
+      return;
     }
+    handleRecorded(audioUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, recorderState, audioUrl]);
 
   function handleCharPressStart(index: number) {
     if (phase !== "recording" || index !== missingIndex || recorderState !== "idle") return;
+    pressStartRef.current = Date.now();
     startRecording();
   }
 

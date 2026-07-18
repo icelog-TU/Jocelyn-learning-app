@@ -23,6 +23,7 @@ import {
   subscribeSentences,
   updateSentenceDifficulty,
   updateSentenceLineBreaks,
+  updateSentenceStats,
   updateSentenceText,
 } from "./sentences";
 import {
@@ -35,6 +36,7 @@ import {
   subscribeSentencesLocal,
   updateSentenceDifficultyLocal,
   updateSentenceLineBreaksLocal,
+  updateSentenceStatsLocal,
   updateSentenceTextLocal,
 } from "./localSentences";
 import { addWeakChar, removeWeakChar, subscribeWeakChars } from "./weakChars";
@@ -53,6 +55,7 @@ import {
 import type {
   AffectionDoc,
   CharacterDoc,
+  CharacterStats,
   CollectedPrizeDoc,
   CreatureVariant,
   NewCharacterInput,
@@ -157,6 +160,20 @@ export function saveSentenceReviewResult(
   return isFirebaseConfigured
     ? recordSentenceReviewResult(familyCode, sentenceId, correct)
     : recordSentenceReviewResultLocal(familyCode, sentenceId, correct);
+}
+
+/** Undoes a review result that shouldn't have counted, by restoring the
+ * exact stats snapshot from before that review — used by "回上一句" when a
+ * round advanced without a real answer (e.g. an accidentally-too-short
+ * recording). */
+export function restoreSentenceStats(
+  familyCode: string,
+  sentenceId: string,
+  stats: CharacterStats,
+): Promise<void> {
+  return isFirebaseConfigured
+    ? updateSentenceStats(familyCode, sentenceId, stats)
+    : updateSentenceStatsLocal(familyCode, sentenceId, stats);
 }
 
 export function editSentenceText(
