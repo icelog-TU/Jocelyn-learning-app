@@ -34,8 +34,14 @@ export interface SpeakSequenceHandle {
  * what's left is only whatever minimal transition the browser's own speech
  * engine takes between two queued utterances, which is as close to gapless
  * as the Web Speech API allows for a still-reliable per-character highlight. */
+/** Speech rate is inversely proportional to spoken duration, so dividing by
+ * 0.75 here — rather than just picking a bigger rate number — makes the
+ * intent explicit: each character now takes about 75% as long to say as
+ * the previous 0.85 default did. */
+const DEFAULT_RATE = 0.85 / 0.75;
+
 export function speakSequence(parts: string[], options: SpeakSequenceOptions = {}): SpeakSequenceHandle {
-  const { rate = 0.85, pitch = 1, onCharStart } = options;
+  const { rate = DEFAULT_RATE, pitch = 1, onCharStart } = options;
   let cancelled = false;
   let resolveDone!: () => void;
   const done = new Promise<void>((resolve) => {

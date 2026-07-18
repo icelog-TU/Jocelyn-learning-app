@@ -13,10 +13,12 @@ interface Props {
   onSkip: () => void;
 }
 
-/** Distinctly higher/slower than the narrator voice used elsewhere, so it's
+/** Distinctly higher than the narrator voice used elsewhere, so it's
  * obviously "a different character talking" rather than the app's own
- * narration. */
-const ANIMAL_VOICE = { pitch: 1.6, rate: 0.95 };
+ * narration. Rate divided by 0.75 for the same reason as speakSequence's
+ * own default — each character/word takes about 75% as long to say as the
+ * original 0.95 rate did. */
+const ANIMAL_VOICE = { pitch: 1.6, rate: 0.95 / 0.75 };
 
 /** Below this hold duration (ms), a press is almost certainly an accidental
  * tap-and-release rather than a real attempt to say the character out loud
