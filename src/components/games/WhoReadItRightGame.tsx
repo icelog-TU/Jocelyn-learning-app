@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SentenceDoc } from "../../types";
 import { SentenceCard } from "../SentenceCard";
-import { speakSequence, type SpeakSequenceHandle } from "../../lib/ttsSequence";
+import {
+  speakSequence,
+  DEFAULT_RATE,
+  HIGHLIGHT_READING_RATE_MULTIPLIER,
+  type SpeakSequenceHandle,
+} from "../../lib/ttsSequence";
 import { playInsufficientSound, playStarSound } from "../../lib/sound";
 import { ANIMAL_EMOJIS, generateWrongVariants, shuffled } from "../../lib/sentenceGames";
 
@@ -84,7 +89,11 @@ export function WhoReadItRightGame({ sentence, onComplete, onSkip }: Props) {
     setWrongKey(null);
     setActiveIndex(null);
     setPlayingKey(opt.key);
-    const seq = speakSequence(opt.chars, { pitch: opt.pitch, onCharStart: setActiveIndex });
+    const seq = speakSequence(opt.chars, {
+      pitch: opt.pitch,
+      rate: DEFAULT_RATE * HIGHLIGHT_READING_RATE_MULTIPLIER,
+      onCharStart: setActiveIndex,
+    });
     currentSeqRef.current = seq;
     seq.done.then(() => {
       if (currentSeqRef.current !== seq) return; // superseded by another tap

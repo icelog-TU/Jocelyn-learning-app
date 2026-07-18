@@ -38,7 +38,15 @@ export interface SpeakSequenceHandle {
  * 0.75 here — rather than just picking a bigger rate number — makes the
  * intent explicit: each character now takes about 75% as long to say as
  * the previous 0.85 default did. */
-const DEFAULT_RATE = 0.85 / 0.75;
+export const DEFAULT_RATE = 0.85 / 0.75;
+
+/** Extra multiplier applied on top of a base rate specifically for
+ * highlighted/karaoke-style reading (a full sentence read one character at a
+ * time with `onCharStart` driving the highlight). She confirmed prompts and
+ * narration are already paced right — this only compresses the
+ * one-character-at-a-time reading itself, roughly halving each character's
+ * duration from where it already was. */
+export const HIGHLIGHT_READING_RATE_MULTIPLIER = 2;
 
 export function speakSequence(parts: string[], options: SpeakSequenceOptions = {}): SpeakSequenceHandle {
   const { rate = DEFAULT_RATE, pitch = 1, onCharStart } = options;

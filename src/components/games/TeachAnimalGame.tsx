@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import type { SentenceDoc } from "../../types";
 import { SentenceCard } from "../SentenceCard";
 import { useAudioRecorder } from "../../hooks/useAudioRecorder";
-import { speakSequence, type SpeakSequenceHandle } from "../../lib/ttsSequence";
+import {
+  speakSequence,
+  HIGHLIGHT_READING_RATE_MULTIPLIER,
+  type SpeakSequenceHandle,
+} from "../../lib/ttsSequence";
 import { playAudioUrl } from "../../lib/audioPlayback";
 import { playDingSound, playStarSound } from "../../lib/sound";
 import { ANIMAL_NAMES, pickAnimalEmoji, pickTargetIndex } from "../../lib/sentenceGames";
@@ -19,6 +23,13 @@ interface Props {
  * own default — each character/word takes about 75% as long to say as the
  * original 0.95 rate did. */
 const ANIMAL_VOICE = { pitch: 1.6, rate: 0.95 / 0.75 };
+
+/** Same idea as ANIMAL_VOICE.rate but only for the highlighted, one-
+ * character-at-a-time reading segments (`before`/`after` the missing
+ * character) — she confirmed the animal's other lines (self-intro, asking,
+ * praise, etc.) are already paced right and only the highlighted reading
+ * itself needed to be roughly twice as fast. */
+const ANIMAL_HIGHLIGHT_READING_RATE = ANIMAL_VOICE.rate * HIGHLIGHT_READING_RATE_MULTIPLIER;
 
 /** Below this hold duration (ms), a press is almost certainly an accidental
  * tap-and-release rather than a real attempt to say the character out loud
@@ -108,7 +119,11 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
     introSeq.done.then(() => {
       if (cancelledRef.current) return;
       const before = chars.slice(0, missingIndex);
-      readSeq = speakSequence(before, { ...ANIMAL_VOICE, onCharStart: setActiveIndex });
+      readSeq = speakSequence(before, {
+        ...ANIMAL_VOICE,
+        rate: ANIMAL_HIGHLIGHT_READING_RATE,
+        onCharStart: setActiveIndex,
+      });
       readSeq.done.then(() => {
         if (cancelledRef.current) return;
         setActiveIndex(null);
@@ -208,7 +223,11 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
         if (cancelledRef.current) return undefined;
         setFoundIndex(null);
         const before = chars.slice(0, missingIndex);
-        const beforeSeq = speakSequence(before, { ...ANIMAL_VOICE, onCharStart: setActiveIndex });
+        const beforeSeq = speakSequence(before, {
+          ...ANIMAL_VOICE,
+          rate: ANIMAL_HIGHLIGHT_READING_RATE,
+          onCharStart: setActiveIndex,
+        });
         return beforeSeq.done;
       })
       .then(() => {
@@ -222,6 +241,7 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
         const after = chars.slice(missingIndex + 1);
         const afterSeq = speakSequence(after, {
           ...ANIMAL_VOICE,
+          rate: ANIMAL_HIGHLIGHT_READING_RATE,
           onCharStart: (i) => setActiveIndex(missingIndex + 1 + i),
         });
         return afterSeq.done;

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SentenceDoc } from "../../types";
 import { SentenceCard } from "../SentenceCard";
-import { speakSequence } from "../../lib/ttsSequence";
+import { speakSequence, DEFAULT_RATE, HIGHLIGHT_READING_RATE_MULTIPLIER } from "../../lib/ttsSequence";
 import { playInsufficientSound, playStarSound } from "../../lib/sound";
 import { pickTargetIndex } from "../../lib/sentenceGames";
 
@@ -40,7 +40,10 @@ export function FindCharacterGame({ sentence, onComplete, onSkip }: Props) {
     setShakeIndex(null);
 
     let cancelled = false;
-    const readSeq = speakSequence(chars, { onCharStart: setActiveIndex });
+    const readSeq = speakSequence(chars, {
+      rate: DEFAULT_RATE * HIGHLIGHT_READING_RATE_MULTIPLIER,
+      onCharStart: setActiveIndex,
+    });
     readSeq.done.then(() => {
       if (cancelled) return;
       setActiveIndex(null);
