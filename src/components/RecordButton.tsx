@@ -3,16 +3,20 @@ import { useEffect, useRef, useState } from "react";
 type RecordState = "idle" | "recording" | "recorded" | "unsupported" | "denied";
 
 interface Props {
-  /** Fired once each time a recording finishes. */
-  onRecorded?: () => void;
+  /** Fired once each time a recording finishes, with a playable object URL
+   * for the clip (revoked automatically on unmount/re-record). */
+  onRecorded?: (audioUrl: string) => void;
   /** Fired whenever it becomes clear recording isn't actually usable here
    * (unsupported browser, or the mic permission was denied), so callers
    * that gate on "must record first" can fall back gracefully instead of
    * permanently blocking a family with no working microphone. */
   onUnavailable?: () => void;
+  /** Text for the initial "start recording" button. Defaults to the
+   * "read the sentence" framing; games override it (e.g. "🎤 教我這個字"). */
+  label?: string;
 }
 
-export function RecordButton({ onRecorded, onUnavailable }: Props) {
+export function RecordButton({ onRecorded, onUnavailable, label = "🎤 錄音念念看" }: Props) {
   const [state, setState] = useState<RecordState>(
     typeof window !== "undefined" && (window.MediaRecorder === undefined || !navigator.mediaDevices)
       ? "unsupported"
@@ -47,10 +51,11 @@ export function RecordButton({ onRecorded, onUnavailable }: Props) {
       };
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        setAudioUrl(URL.createObjectURL(blob));
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
         stream.getTracks().forEach((t) => t.stop());
         setState("recorded");
-        onRecorded?.();
+        onRecorded?.(url);
       };
       mediaRecorderRef.current = recorder;
       recorder.start();
@@ -107,7 +112,7 @@ export function RecordButton({ onRecorded, onUnavailable }: Props) {
 
   return (
     <button className="btn btn-outline" onClick={startRecording}>
-      🎤 錄音念念看
+      {label}
     </button>
   );
 }

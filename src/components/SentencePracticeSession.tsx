@@ -9,6 +9,8 @@ import { SentenceCard } from "./SentenceCard";
 import { StarBurst } from "./StarBurst";
 import { StarTray } from "./StarTray";
 import { RecordButton } from "./RecordButton";
+import { FindCharacterGame } from "./games/FindCharacterGame";
+import { TeachAnimalGame } from "./games/TeachAnimalGame";
 
 /** Budget for the completion-screen star count-up animation, in ms. */
 const CELEBRATION_COUNT_BUDGET_MS = 1400;
@@ -21,6 +23,16 @@ const PRAISE_PHRASES = [
   "超級棒的！",
   "念得好流利！",
 ];
+
+/** Each round randomly picks one of these ways to interact with the
+ * sentence, instead of always doing the same "record yourself reading it"
+ * drill — variety keeps it feeling like play rather than a repeated test. */
+type RoundMode = "classic" | "find-char" | "teach-animal";
+const ROUND_MODES: RoundMode[] = ["classic", "find-char", "teach-animal"];
+
+function pickRoundMode(): RoundMode {
+  return ROUND_MODES[Math.floor(Math.random() * ROUND_MODES.length)];
+}
 
 /** Minimum time to keep "我念對了" disabled after a sentence appears, so
  * tapping it the instant it renders (without reading anything) can't earn a
@@ -74,6 +86,7 @@ export function SentencePracticeSession({
   const [minWaitDone, setMinWaitDone] = useState(false);
   const [hasRecorded, setHasRecorded] = useState(false);
   const [micRequired, setMicRequired] = useState(true);
+  const [mode, setMode] = useState<RoundMode>("classic");
 
   const isComplete = index >= localSession.length;
   const current = localSession[index];
@@ -87,6 +100,7 @@ export function SentencePracticeSession({
     if (isComplete) return;
     setMinWaitDone(false);
     setHasRecorded(false);
+    setMode(pickRoundMode());
     const timer = window.setTimeout(() => setMinWaitDone(true), minReadWaitMs(current.text));
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,7 +174,7 @@ export function SentencePracticeSession({
     }
   }
 
-  async function handleCorrect() {
+  async function handleCorrect(opts: { silent?: boolean } = {}) {
     if (busy) return;
     setBusy(true);
     const stars = starsForDifficulty(current.difficulty);
@@ -168,8 +182,10 @@ export function SentencePracticeSession({
     setCorrectCount((c) => c + 1);
     setBurstKey((k) => k + 1);
     setPillPulseKey((k) => k + 1);
-    playStarSound();
-    speakPraise();
+    if (!opts.silent) {
+      playStarSound();
+      speakPraise();
+    }
     try {
       await saveSentenceReviewResult(familyCode, current.id, true);
     } finally {
@@ -237,6 +253,20 @@ export function SentencePracticeSession({
             </button>
           </div>
         </div>
+      ) : mode === "find-char" ? (
+        <FindCharacterGame
+          key={current.id}
+          sentence={current}
+          onComplete={() => handleCorrect({ silent: true })}
+          onSkip={handleSkip}
+        />
+      ) : mode === "teach-animal" ? (
+        <TeachAnimalGame
+          key={current.id}
+          sentence={current}
+          onComplete={() => handleCorrect({ silent: true })}
+          onSkip={handleSkip}
+        />
       ) : (
         <>
           <div style={{ position: "relative" }}>
@@ -272,7 +302,7 @@ export function SentencePracticeSession({
         </>
       )}
 
-      {!editing && onToggleWeakChar && (
+      {!editing && mode === "classic" && onToggleWeakChar && (
         <div style={{ margin: "12px 0" }}>
           <p
             style={{
@@ -310,7 +340,7 @@ export function SentencePracticeSession({
         </div>
       )}
 
-      {!editing && (
+      {!editing && mode === "classic" && (
         <>
           <p style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "16px 0" }}>
             請她把整句話念出來，念對了嗎？
@@ -329,7 +359,7 @@ export function SentencePracticeSession({
             <button
               className="btn btn-primary btn-block"
               disabled={busy || !minWaitDone || (micRequired && !hasRecorded)}
-              onClick={handleCorrect}
+              onClick={() => handleCorrect()}
             >
               🎉 我念對了！
             </button>

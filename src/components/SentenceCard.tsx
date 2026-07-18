@@ -12,6 +12,21 @@ interface Props {
    * audio controls (e.g. the record button) sit at the same height instead
    * of being scrolled far away from each other. */
   extraActions?: ReactNode;
+  /** When set, every character renders as a tappable button (used by the
+   * "find the character" / "which animal read it right" games) instead of
+   * plain text — called with the tapped character's index into
+   * `Array.from(sentence)` and the character itself. */
+  onCharTap?: (index: number, char: string) => void;
+  /** Character index to highlight karaoke-style (e.g. the one currently
+   * being read aloud). */
+  activeIndex?: number | null;
+  /** Character index to briefly flash red (a wrong guess). */
+  shakeIndex?: number | null;
+  /** Character index to mark green (the correctly-found one). */
+  foundIndex?: number | null;
+  /** Character index to pulse blue (e.g. "I don't know this one, can you
+   * teach me?" in the teach-the-animal game). */
+  askingIndex?: number | null;
 }
 
 /** Unicode's plain punctuation codepoints (，。「」etc.) are designed for
@@ -82,8 +97,18 @@ function chunkIntoColumns(chars: AnnotatedChar[], lineBreaks?: number[]): Annota
   return columns;
 }
 
-export function SentenceCard({ sentence, lineBreaks, extraActions }: Props) {
+export function SentenceCard({
+  sentence,
+  lineBreaks,
+  extraActions,
+  onCharTap,
+  activeIndex,
+  shakeIndex,
+  foundIndex,
+  askingIndex,
+}: Props) {
   const columns = chunkIntoColumns(zhuyinForSentence(sentence), lineBreaks);
+  let flatIndex = -1;
 
   return (
     <div className="card" style={{ textAlign: "center", padding: "24px 16px" }}>
@@ -103,8 +128,39 @@ export function SentenceCard({ sentence, lineBreaks, extraActions }: Props) {
         {columns.map((col, ci) => (
           <div key={ci} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             {col.map((c, i) => {
+              flatIndex += 1;
+              const charIndex = flatIndex;
+              const charClass = [
+                charIndex === activeIndex ? "char-active" : "",
+                charIndex === shakeIndex ? "char-shake" : "",
+                charIndex === foundIndex ? "char-found" : "",
+                charIndex === askingIndex ? "char-asking" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              const RowTag = onCharTap ? "button" : "div";
+              const rowProps = onCharTap
+                ? {
+                    type: "button" as const,
+                    onClick: () => onCharTap(charIndex, c.char),
+                    "aria-label": `這個字是「${c.char}」`,
+                    style: {
+                      display: "flex",
+                      flexDirection: "row" as const,
+                      alignItems: "center",
+                      gap: 2,
+                      background: "none",
+                      border: "none",
+                      padding: 4,
+                      font: "inherit",
+                      cursor: "pointer",
+                    },
+                  }
+                : {
+                    style: { display: "flex", flexDirection: "row" as const, alignItems: "center", gap: 2 },
+                  };
               return (
-              <div key={i} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2 }}>
+              <RowTag key={i} className={charClass || undefined} {...rowProps}>
                 <span
                   style={{
                     fontSize: "2.2rem",
@@ -170,7 +226,7 @@ export function SentenceCard({ sentence, lineBreaks, extraActions }: Props) {
                       </div>
                     );
                   })()}
-              </div>
+              </RowTag>
               );
             })}
           </div>
