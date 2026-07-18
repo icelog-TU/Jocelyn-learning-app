@@ -67,9 +67,10 @@ export function WhoReadItRightGame({ sentence, onComplete, onSkip }: Props) {
       onSkip();
       return;
     }
-    speakSequence([
-      "聽聽看每一隻動物怎麼念。已經聽過的動物，再點一次就是選定牠，不用四隻都聽完喔！",
-    ]);
+    // Kept short deliberately — the "tap an already-heard animal again to
+    // select it" mechanic is discoverable through a tap or two, and didn't
+    // need spelling out in speech every round once she'd found it once.
+    speakSequence(["聽聽看下面哪隻動物念得對？"]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sentence.id, playable]);
 

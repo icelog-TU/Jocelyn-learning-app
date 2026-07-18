@@ -47,6 +47,15 @@ export function speakSequence(parts: string[], options: SpeakSequenceOptions = {
     return { done, cancel: () => {} };
   }
   window.speechSynthesis.cancel();
+  // Chrome (notably on Android) has a long-standing bug where the speech
+  // queue can end up silently stuck in a "paused" state — e.g. after a tab
+  // was backgrounded, or sometimes just after a cancel() — so newly queued
+  // utterances sit there for a while before actually starting to play. That
+  // would show up as exactly what got reported: gaps between characters
+  // that come and go rather than a constant, predictable delay. `resume()`
+  // is a harmless no-op when the queue isn't paused, so it's safe to call
+  // unconditionally as a guard against that stuck state.
+  window.speechSynthesis.resume();
 
   let completedCount = 0;
   function onOneSettled() {
