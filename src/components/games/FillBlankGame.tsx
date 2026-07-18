@@ -4,7 +4,7 @@ import { SentenceCard } from "../SentenceCard";
 import { speak } from "../../lib/speech";
 import { speakSequence } from "../../lib/ttsSequence";
 import { playInsufficientSound, playStarSound } from "../../lib/sound";
-import { pickTargetIndex } from "../../lib/sentenceGames";
+import { pickTargetIndex, shuffled } from "../../lib/sentenceGames";
 
 interface Props {
   sentence: SentenceDoc;
@@ -20,15 +20,6 @@ interface Props {
  * as "just tap it to hear the sound", not an attempt to place it — lets a
  * child freely listen to all four candidates before committing to one. */
 const TAP_THRESHOLD = 18;
-
-function shuffled<T>(arr: T[]): T[] {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
 
 function pickDecoys(targetChar: string, sentenceChars: Set<string>, pool: SentenceDoc[]): string[] {
   const candidates = new Set<string>();

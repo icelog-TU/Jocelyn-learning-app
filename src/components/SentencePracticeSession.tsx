@@ -12,6 +12,7 @@ import { RecordButton } from "./RecordButton";
 import { FindCharacterGame } from "./games/FindCharacterGame";
 import { TeachAnimalGame } from "./games/TeachAnimalGame";
 import { FillBlankGame } from "./games/FillBlankGame";
+import { shuffled } from "../lib/sentenceGames";
 
 /** Budget for the completion-screen star count-up animation, in ms. */
 const CELEBRATION_COUNT_BUDGET_MS = 1400;
@@ -25,15 +26,11 @@ const PRAISE_PHRASES = [
   "念得好流利！",
 ];
 
-/** Each round randomly picks one of these ways to interact with the
- * sentence, instead of always doing the same "record yourself reading it"
- * drill — variety keeps it feeling like play rather than a repeated test. */
+/** Each round picks one of these ways to interact with the sentence, instead
+ * of always doing the same "record yourself reading it" drill — variety
+ * keeps it feeling like play rather than a repeated test. */
 type RoundMode = "classic" | "find-char" | "teach-animal" | "fill-blank";
 const ROUND_MODES: RoundMode[] = ["classic", "find-char", "teach-animal", "fill-blank"];
-
-function pickRoundMode(): RoundMode {
-  return ROUND_MODES[Math.floor(Math.random() * ROUND_MODES.length)];
-}
 
 /** Minimum time to keep "我念對了" disabled after a sentence appears, so
  * tapping it the instant it renders (without reading anything) can't earn a
@@ -101,14 +98,35 @@ export function SentencePracticeSession({
    * sentence's persisted stats) instead of just rewinding the index and
    * leaving stale progress behind. */
   const roundHistoryRef = useRef<Array<{ wasCorrect: boolean; stars: number }>>([]);
+  /** A "shuffle bag" of modes: refilled with a freshly-shuffled copy of all
+   * four whenever it runs dry, so every mode is guaranteed to appear before
+   * any of them repeats — plain independent random picks could otherwise
+   * streak the same mode for several sentences in a row, which is exactly
+   * what felt repetitive/boring in practice. */
+  const modeQueueRef = useRef<RoundMode[]>([]);
+
+  function nextRoundMode(): RoundMode {
+    if (modeQueueRef.current.length === 0) {
+      modeQueueRef.current = shuffled(ROUND_MODES);
+    }
+    return modeQueueRef.current.shift()!;
+  }
 
   useEffect(() => {
     if (isComplete) return;
+    // Silences any speech still queued/playing from the previous round
+    // (e.g. a game's closing praise line that hadn't finished yet) so it
+    // can't bleed into this new round's screen and sound like it belongs
+    // to whatever is now on screen.
+    window.speechSynthesis?.cancel();
     setMinWaitDone(false);
     setHasRecorded(false);
-    setMode(pickRoundMode());
+    setMode(nextRoundMode());
     const timer = window.setTimeout(() => setMinWaitDone(true), minReadWaitMs(current.text));
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.speechSynthesis?.cancel();
+      window.clearTimeout(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id]);
 

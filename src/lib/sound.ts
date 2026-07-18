@@ -91,6 +91,34 @@ export function playPatSound(): void {
   osc.stop(start + 0.12);
 }
 
+/** A short, unmistakable double-beep for "recording has actually started,
+ * speak now" — distinct from every other effect (higher, sharper, exactly
+ * two identical beeps) so it reads as "go" rather than blending in with the
+ * softer chimes used elsewhere. */
+export function playRecordStartSound(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const startTime = ctx.currentTime;
+  [0, 0.14].forEach((offset) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "square";
+    osc.frequency.value = 1200;
+
+    const noteStart = startTime + offset;
+    const noteEnd = noteStart + 0.09;
+    gain.gain.setValueAtTime(0, noteStart);
+    gain.gain.linearRampToValueAtTime(0.18, noteStart + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, noteEnd);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(noteStart);
+    osc.stop(noteEnd);
+  });
+}
+
 /** A gentle "not quite yet" blip for trying to buy a gift without enough
  * stars — soft and friendly, not a harsh error buzzer. */
 export function playInsufficientSound(): void {

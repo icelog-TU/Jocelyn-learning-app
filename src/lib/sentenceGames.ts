@@ -20,3 +20,17 @@ export const ANIMAL_EMOJIS = ["🐶", "🐱", "🐰", "🐻", "🐼", "🦊", "�
 export function pickAnimalEmoji(): string {
   return ANIMAL_EMOJIS[Math.floor(Math.random() * ANIMAL_EMOJIS.length)];
 }
+
+/** Fisher-Yates shuffle — used both for the fill-blank game's answer order
+ * and for the practice session's per-round game-mode "shuffle bag" (see
+ * SentencePracticeSession), which guarantees every mode shows up once
+ * before any of them repeats instead of relying on independent random picks
+ * that can streak the same mode several times in a row. */
+export function shuffled<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}

@@ -4,7 +4,7 @@ import { SentenceCard } from "../SentenceCard";
 import { useAudioRecorder } from "../../hooks/useAudioRecorder";
 import { speakSequence } from "../../lib/ttsSequence";
 import { playAudioUrl } from "../../lib/audioPlayback";
-import { playStarSound } from "../../lib/sound";
+import { playRecordStartSound, playStarSound } from "../../lib/sound";
 import { pickAnimalEmoji, pickTargetIndex } from "../../lib/sentenceGames";
 
 interface Props {
@@ -78,10 +78,10 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
       if (cancelledRef.current) return;
       setActiveIndex(null);
       setAskingIndex(missingIndex);
-      const askSeq = speakSequence(
-        [`嗯…這個字我不會念，你可以教我嗎？按住「${missingChar}」念給我聽吧！`],
-        ANIMAL_VOICE,
-      );
+      // Deliberately never speaks the missing character itself — the whole
+      // premise is "I don't know this one", so saying it out loud here
+      // would contradict that. The on-screen text still names it visually.
+      const askSeq = speakSequence(["嗯…這個字我不會念，你可以教我嗎？按住這個字，念給我聽吧！"], ANIMAL_VOICE);
       askSeq.done.then(() => {
         if (!cancelledRef.current) setPhase("recording");
       });
@@ -109,6 +109,15 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
     handleRecorded(audioUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, recorderState, audioUrl]);
+
+  // Fires the instant the microphone actually starts capturing — the clear
+  // "go" signal she asked for, since the press itself only requests
+  // permission and there's no other reliable way to know recording has
+  // really begun (especially the first time, when the browser's own
+  // permission prompt adds an unpredictable delay after the press).
+  useEffect(() => {
+    if (recorderState === "recording") playRecordStartSound();
+  }, [recorderState]);
 
   function handleCharPressStart(index: number) {
     if (phase !== "recording" || index !== missingIndex || recorderState !== "idle") return;
@@ -169,14 +178,26 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
       <p style={{ textAlign: "center", fontSize: "2.5rem", margin: "0 0 4px" }} aria-hidden>
         {animal}
       </p>
-      <p style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "0 0 12px", minHeight: "1.4em" }}>
-        {phase === "reading" && "🔊 小動物正在練習念這句話…"}
-        {phase === "recording" &&
-          (recorderState === "recording"
-            ? `錄音中…放開就完成囉`
-            : `牠卡住了！按住句子裡的「${missingChar}」，教牠怎麼念`)}
-        {phase === "reciting" && "🔊 小動物在跟著你學…"}
-      </p>
+      {recorderState === "recording" ? (
+        <p
+          style={{
+            textAlign: "center",
+            color: "var(--color-danger)",
+            fontWeight: 800,
+            fontSize: "1.3rem",
+            margin: "0 0 12px",
+            minHeight: "1.4em",
+          }}
+        >
+          🔴 錄音中！念出聲音吧，念完放開
+        </p>
+      ) : (
+        <p style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "0 0 12px", minHeight: "1.4em" }}>
+          {phase === "reading" && "🔊 小動物正在練習念這句話…"}
+          {phase === "recording" && `牠卡住了！按住句子裡的「${missingChar}」，教牠怎麼念`}
+          {phase === "reciting" && "🔊 小動物在跟著你學…"}
+        </p>
+      )}
       <SentenceCard
         sentence={sentence.text}
         lineBreaks={sentence.lineBreaks}
