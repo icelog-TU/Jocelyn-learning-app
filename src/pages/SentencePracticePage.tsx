@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { CharacterDoc, SentenceDifficulty, SentenceDoc } from "../types";
@@ -9,9 +10,26 @@ import {
   isSentencePracticeConfigured,
 } from "../lib/sentencePractice";
 import { saveSentenceBatch } from "../lib/store";
+import { speak } from "../lib/speech";
 import { SentencePracticeSession } from "../components/SentencePracticeSession";
 import { GenerateSentenceDialog } from "../components/GenerateSentenceDialog";
 import { SentenceDraftEditor, type DraftEntry } from "../components/SentenceDraftEditor";
+
+/** Reset styles so a <button> can stand in for plain tappable text/headings
+ * without looking like a button. */
+const speakableStyle: CSSProperties = {
+  background: "none",
+  border: "none",
+  padding: 0,
+  margin: 0,
+  fontFamily: "inherit",
+  fontSize: "inherit",
+  color: "inherit",
+  textAlign: "left",
+  cursor: "pointer",
+  display: "block",
+  width: "100%",
+};
 
 const SESSION_SIZE = 10;
 const GENERATE_COUNT = 5;
@@ -285,27 +303,60 @@ export function SentencePracticePage({
   if (phase === "mode-select") {
     return (
       <div className="screen">
-        <h1 className="page-title">AI 句子練習</h1>
+        <h1 className="page-title" style={{ margin: "4px 0 4px" }}>
+          <button
+            type="button"
+            style={{ ...speakableStyle, fontSize: "inherit", fontWeight: "inherit" }}
+            onClick={() => speak("AI 句子練習")}
+          >
+            AI 句子練習
+          </button>
+        </h1>
 
         <div className="card" style={{ marginBottom: 16 }}>
-          <p style={{ fontWeight: 700, margin: "0 0 8px" }}>🎲 隨機複習</p>
-          <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", margin: "0 0 12px" }}>
+          <button
+            type="button"
+            style={{ ...speakableStyle, fontWeight: 700, marginBottom: 8 }}
+            onClick={() => speak("隨機複習")}
+          >
+            🎲 隨機複習
+          </button>
+          <button
+            type="button"
+            style={{ ...speakableStyle, color: "var(--color-text-muted)", fontSize: "0.85rem", marginBottom: 12 }}
+            onClick={() => speak("從所有句子裡，優先挑到期該複習的句子。")}
+          >
             從所有句子裡，優先挑到期該複習的句子。
-          </p>
-          <button className="btn btn-primary btn-block" onClick={startRandomReview}>
+          </button>
+          <button
+            className="btn btn-primary btn-block"
+            onClick={() => {
+              speak("開始隨機複習");
+              startRandomReview();
+            }}
+          >
             開始隨機複習
           </button>
         </div>
 
         <div className="card" style={{ marginBottom: 16 }}>
-          <p style={{ fontWeight: 700, margin: "0 0 8px" }}>🎯 挑難度複習</p>
+          <button
+            type="button"
+            style={{ ...speakableStyle, fontWeight: 700, marginBottom: 8 }}
+            onClick={() => speak("挑難度複習")}
+          >
+            🎯 挑難度複習
+          </button>
           <div style={{ display: "flex", gap: 8 }}>
             {DIFFICULTY_ORDER.map((d) => (
               <button
                 key={d}
                 className="btn btn-outline"
                 style={{ flex: 1 }}
-                onClick={() => startDifficultyReview(d)}
+                onClick={() => {
+                  speak(DIFFICULTY_LABELS[d]);
+                  startDifficultyReview(d);
+                }}
               >
                 {DIFFICULTY_LABELS[d]}
               </button>
@@ -314,10 +365,22 @@ export function SentencePracticePage({
         </div>
 
         <div className="card" style={{ marginBottom: 16 }}>
-          <p style={{ fontWeight: 700, margin: "0 0 6px" }}>🔤 挑字複習</p>
-          <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", margin: "0 0 12px" }}>
+          <button
+            type="button"
+            style={{ ...speakableStyle, fontWeight: 700, marginBottom: 6 }}
+            onClick={() => speak("挑字複習")}
+          >
+            🔤 挑字複習
+          </button>
+          <button
+            type="button"
+            style={{ ...speakableStyle, color: "var(--color-text-muted)", fontSize: "0.85rem", marginBottom: 12 }}
+            onClick={() =>
+              speak("輸入一個字，找出所有含有這個字的句子。")
+            }
+          >
             輸入一個字，找出所有含有這個字的句子（不限造句時的目標字，句子裡任何地方出現這個字都算）。
-          </p>
+          </button>
           <div style={{ display: "flex", gap: 8 }}>
             <input
               value={charFilterInput}
@@ -328,7 +391,13 @@ export function SentencePracticePage({
               placeholder="輸入一個字"
               style={{ flex: 1 }}
             />
-            <button className="btn btn-secondary" onClick={startCharReview}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                speak("開始挑字複習");
+                startCharReview();
+              }}
+            >
               開始
             </button>
           </div>
@@ -339,7 +408,10 @@ export function SentencePracticePage({
         )}
 
         <button
-          onClick={openDialog}
+          onClick={() => {
+            speak("產生新句子");
+            openDialog();
+          }}
           style={{
             background: "none",
             border: "none",

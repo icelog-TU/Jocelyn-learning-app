@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import type { AffectionDoc, CharacterDoc, CollectedPrizeDoc, CreatureVariant, SentenceDoc } from "../types";
 import { computeTotalStars } from "../lib/sentencePractice";
 import { savePrize } from "../lib/store";
-import { playStarSound } from "../lib/sound";
+import { playInsufficientSound, playStarSound } from "../lib/sound";
 import { speak } from "../lib/speech";
 import { toChineseCount } from "../lib/chineseNumerals";
 import { StarBurst } from "../components/StarBurst";
@@ -70,7 +70,12 @@ export function GachaPage({ characters, sentences, prizes, affection, familyCode
   const totalKeyCount = allPrizeKeys().length;
 
   async function handleDraw() {
-    if (!canDraw) return;
+    if (drawing) return;
+    if (available < GACHA_COST) {
+      playInsufficientSound();
+      speak("可用星星不夠，要多練習賺星星，才能轉蛋喔。");
+      return;
+    }
     setReveal(null);
     setDrawing(true);
 
@@ -161,7 +166,13 @@ export function GachaPage({ characters, sentences, prizes, affection, familyCode
           </button>
         )}
 
-        <button className="btn btn-primary" style={{ width: "100%" }} disabled={!canDraw} onClick={handleDraw}>
+        <button
+          className="btn btn-primary"
+          style={{ width: "100%", opacity: canDraw || drawing ? 1 : 0.6 }}
+          disabled={drawing}
+          aria-disabled={!canDraw}
+          onClick={handleDraw}
+        >
           {drawing ? "轉蛋中…" : `轉蛋一次（${GACHA_COST} 顆星）`}
         </button>
         {!drawing && available < GACHA_COST && (

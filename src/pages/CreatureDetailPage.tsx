@@ -163,6 +163,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
 
     if (available < gift.cost) {
       playInsufficientSound();
+      speak("可用星星不夠，要多練習賺星星，才能買東西喔。");
       setShakeKey(Date.now());
       setInsufficientMsg(true);
       window.setTimeout(() => setInsufficientMsg(false), 2200);
