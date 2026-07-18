@@ -86,8 +86,8 @@ export interface GiftOption {
  * favourite creature over spreading stars thin across everyone. */
 export const GIFT_OPTIONS: GiftOption[] = [
   { id: "treat", label: "小點心", emoji: "🍬", cost: 2, hearts: 1 },
-  { id: "toy", label: "小玩具", emoji: "🧸", cost: 5, hearts: 2 },
-  { id: "special", label: "特別禮物", emoji: "💝", cost: 10, hearts: 4 },
+  { id: "toy", label: "小玩具", emoji: "🧸", cost: 5, hearts: 3 },
+  { id: "special", label: "特別禮物", emoji: "💝", cost: 10, hearts: 7 },
 ];
 
 /** Heart thresholds that unlock a new affection-stage interaction. Stage 0
