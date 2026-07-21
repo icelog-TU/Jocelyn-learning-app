@@ -120,6 +120,56 @@ export function drawRandomPrize(): { speciesId: string; variant: CreatureVariant
   return { speciesId: species.id, variant };
 }
 
+/** Number of consecutive already-owned draws that forces the next draw to be
+ * a brand-new species+variant — so a losing streak never runs past 6 draws
+ * without something to celebrate (5 already-owned in a row, then the 6th is
+ * guaranteed new). */
+export const PITY_STREAK_LIMIT = 5;
+
+function keyToSpeciesVariant(key: string): { speciesId: string; variant: CreatureVariant } {
+  const [speciesId, variant] = key.split(":");
+  return { speciesId, variant: variant as CreatureVariant };
+}
+
+/** How many draws in a row, most recent first, came up already-owned —
+ * replayed from prize history in obtain order (each prize counts as "new" or
+ * not based on what was already owned at that point in time, not the
+ * present-day owned set). Resets to 0 at the most recent new draw. */
+export function computeNoNewStreak(
+  prizes: { speciesId: string; variant: CreatureVariant; obtainedAt: number }[],
+): number {
+  const sorted = [...prizes].sort((a, b) => a.obtainedAt - b.obtainedAt);
+  const owned = new Set<string>();
+  let streak = 0;
+  for (const p of sorted) {
+    const key = prizeKey(p.speciesId, p.variant);
+    if (owned.has(key)) {
+      streak += 1;
+    } else {
+      streak = 0;
+      owned.add(key);
+    }
+  }
+  return streak;
+}
+
+/** Draws a random prize, forcing a brand-new species+variant once the no-new
+ * streak has hit the pity limit. Falls back to a plain random draw once
+ * every combination has already been collected (nothing left to force). */
+export function drawPrizeWithPity(
+  ownedKeys: Set<string>,
+  noNewStreak: number,
+): { speciesId: string; variant: CreatureVariant } {
+  if (noNewStreak >= PITY_STREAK_LIMIT) {
+    const unowned = allPrizeKeys().filter((k) => !ownedKeys.has(k));
+    if (unowned.length > 0) {
+      const key = unowned[Math.floor(Math.random() * unowned.length)];
+      return keyToSpeciesVariant(key);
+    }
+  }
+  return drawRandomPrize();
+}
+
 /** Stars still available to spend, after subtracting what's already gone into
  * gacha draws and creature gifts from the lifetime total. Lifetime total can
  * stay far above this once stars have been spent. */

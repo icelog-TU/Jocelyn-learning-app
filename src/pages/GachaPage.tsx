@@ -17,7 +17,8 @@ import {
   VARIANT_LABELS,
   allPrizeKeys,
   computeAvailableStars,
-  drawRandomPrize,
+  computeNoNewStreak,
+  drawPrizeWithPity,
   prizeKey,
   speciesById,
 } from "../lib/gachaCatalog";
@@ -73,6 +74,11 @@ export function GachaPage({ characters, sentences, prizes, affection, familyCode
   }
   const ownedKeyCount = [...ownedCounts.keys()].length;
   const totalKeyCount = allPrizeKeys().length;
+  // Repeats are allowed, so a run of bad luck could in theory go on forever —
+  // this counts how many draws in a row (most recent first) came up
+  // already-owned, so drawPrizeWithPity can force a fresh one once that
+  // streak hits the pity limit (see gachaCatalog.ts).
+  const noNewStreak = computeNoNewStreak(prizes);
 
   async function handleDraw() {
     if (drawing) return;
@@ -84,7 +90,7 @@ export function GachaPage({ characters, sentences, prizes, affection, familyCode
     setReveal(null);
     setDrawing(true);
 
-    const prize = drawRandomPrize();
+    const prize = drawPrizeWithPity(new Set(ownedCounts.keys()), noNewStreak);
     const isNew = !ownedCounts.has(prizeKey(prize.speciesId, prize.variant));
 
     window.setTimeout(async () => {
@@ -93,7 +99,11 @@ export function GachaPage({ characters, sentences, prizes, affection, familyCode
       setReveal({ ...prize, isNew });
       setBurstKey((k) => k + 1);
       playStarSound();
-      speak(`恭喜你，轉到${creatureFullName(prize.speciesId, prize.variant)}了！`);
+      if (isNew) {
+        speak(`恭喜你，轉到${creatureFullName(prize.speciesId, prize.variant)}了！`);
+      } else {
+        speak(`喔！你已經有「${creatureFullName(prize.speciesId, prize.variant)}」了，再接再厲！`);
+      }
     }, 900);
   }
 
