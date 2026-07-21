@@ -4,6 +4,7 @@ import { SentenceCard } from "../SentenceCard";
 import { useAudioRecorder } from "../../hooks/useAudioRecorder";
 import {
   speakSequence,
+  filterHanWithIndices,
   HIGHLIGHT_READING_RATE_MULTIPLIER,
   type SpeakSequenceHandle,
 } from "../../lib/ttsSequence";
@@ -119,10 +120,11 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
     introSeq.done.then(() => {
       if (cancelledRef.current) return;
       const before = chars.slice(0, missingIndex);
-      readSeq = speakSequence(before, {
+      const { chars: spokenBefore, indices: beforeIndices } = filterHanWithIndices(before);
+      readSeq = speakSequence(spokenBefore, {
         ...ANIMAL_VOICE,
         rate: ANIMAL_HIGHLIGHT_READING_RATE,
-        onCharStart: setActiveIndex,
+        onCharStart: (i) => setActiveIndex(beforeIndices[i]),
       });
       readSeq.done.then(() => {
         if (cancelledRef.current) return;
@@ -223,10 +225,11 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
         if (cancelledRef.current) return undefined;
         setFoundIndex(null);
         const before = chars.slice(0, missingIndex);
-        const beforeSeq = speakSequence(before, {
+        const { chars: spokenBefore, indices: beforeIndices } = filterHanWithIndices(before);
+        const beforeSeq = speakSequence(spokenBefore, {
           ...ANIMAL_VOICE,
           rate: ANIMAL_HIGHLIGHT_READING_RATE,
-          onCharStart: setActiveIndex,
+          onCharStart: (i) => setActiveIndex(beforeIndices[i]),
         });
         return beforeSeq.done;
       })
@@ -239,10 +242,11 @@ export function TeachAnimalGame({ sentence, onComplete, onSkip }: Props) {
         if (cancelledRef.current) return undefined;
         setActiveIndex(null);
         const after = chars.slice(missingIndex + 1);
-        const afterSeq = speakSequence(after, {
+        const { chars: spokenAfter, indices: afterIndices } = filterHanWithIndices(after);
+        const afterSeq = speakSequence(spokenAfter, {
           ...ANIMAL_VOICE,
           rate: ANIMAL_HIGHLIGHT_READING_RATE,
-          onCharStart: (i) => setActiveIndex(missingIndex + 1 + i),
+          onCharStart: (i) => setActiveIndex(missingIndex + 1 + afterIndices[i]),
         });
         return afterSeq.done;
       })

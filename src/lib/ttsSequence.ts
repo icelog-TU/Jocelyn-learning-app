@@ -48,6 +48,29 @@ export const DEFAULT_RATE = 0.85 / 0.75;
  * duration from where it already was. */
 export const HIGHLIGHT_READING_RATE_MULTIPLIER = 2;
 
+/** Drops punctuation (and anything else that isn't a Chinese character) from
+ * a per-character reading sequence before it ever reaches `speakSequence`.
+ * A lone punctuation mark handed to the speech engine as its own utterance
+ * is unreliable on real devices — some engines silently skip it (never
+ * firing `onstart`/`onend`) or otherwise mishandle it, which throws off the
+ * 1:1 correspondence `speakSequence` relies on between an utterance's
+ * `onstart` and its index, permanently desyncing every character's
+ * highlight from its audio for the rest of the sentence. `indices` maps
+ * each returned character back to its original position, so a caller can
+ * still highlight the correct spot in the full (punctuation-included)
+ * sentence. */
+export function filterHanWithIndices(chars: string[]): { chars: string[]; indices: number[] } {
+  const hanChars: string[] = [];
+  const indices: number[] = [];
+  chars.forEach((c, i) => {
+    if (/\p{Script=Han}/u.test(c)) {
+      hanChars.push(c);
+      indices.push(i);
+    }
+  });
+  return { chars: hanChars, indices };
+}
+
 export function speakSequence(parts: string[], options: SpeakSequenceOptions = {}): SpeakSequenceHandle {
   const { rate = DEFAULT_RATE, pitch = 1, onCharStart } = options;
   let cancelled = false;
