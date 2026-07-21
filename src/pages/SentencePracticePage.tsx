@@ -221,6 +221,18 @@ export function SentencePracticePage({
     setPhase("mode-select");
   }
 
+  // NavBar's "複習" tap sends a fresh `resetToModeSelect` value (even when
+  // already on this route, where a plain nav click wouldn't otherwise cause
+  // any navigation/effect at all) specifically so this page can jump back to
+  // its own mode-select home from wherever it currently is — mid-session or
+  // sitting on a finished round's summary screen, which previously had no
+  // way back except the in-page "換個複習模式" button.
+  useEffect(() => {
+    const resetSignal = (location.state as { resetToModeSelect?: number } | null)?.resetToModeSelect;
+    if (resetSignal) backToModeSelect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
+
   // After confirming drafts, wait for the subscription to reflect the saved
   // batch (with real IDs) before starting the session.
   useEffect(() => {

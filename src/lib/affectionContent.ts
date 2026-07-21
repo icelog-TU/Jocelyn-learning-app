@@ -52,6 +52,11 @@ export const AFFECTION_STAGES = [
   { title: "最好的朋友", icon: "💖", threshold: 10 },
 ] as const;
 
+/** A creature can't be gifted past this — "最好的朋友" is the last stage, so
+ * hearts beyond it don't unlock anything; without a cap, gifting past 10
+ * still happily spent stars for zero further effect. */
+export const MAX_HEARTS = AFFECTION_STAGES[AFFECTION_STAGES.length - 1].threshold;
+
 // Stage 0 — 初次見面 (always shown; hasn't unlocked anything yet).
 const ROLE_FIRST_MEETING: Record<CreatureVariant, string> = {
   grandpa: "{name}看著你，還不熟悉。",

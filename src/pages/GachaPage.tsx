@@ -22,6 +22,11 @@ import {
   speciesById,
 } from "../lib/gachaCatalog";
 
+function creatureFullName(speciesId: string, variant: CreatureVariant): string {
+  const species = speciesById(speciesId);
+  return `${species?.name ?? ""}${VARIANT_LABELS[variant]}`;
+}
+
 /** Reset styles so a <button> can stand in for plain tappable text/headings
  * without looking like a button. */
 const speakableButtonStyle: CSSProperties = {
@@ -88,6 +93,7 @@ export function GachaPage({ characters, sentences, prizes, affection, familyCode
       setReveal({ ...prize, isNew });
       setBurstKey((k) => k + 1);
       playStarSound();
+      speak(`恭喜你，轉到${creatureFullName(prize.speciesId, prize.variant)}了！`);
     }, 900);
   }
 

@@ -23,6 +23,7 @@ import {
 } from "../lib/gachaCatalog";
 import {
   AFFECTION_STAGES,
+  MAX_HEARTS,
   currentStageIndex,
   firstMeetingText,
   letterText,
@@ -80,6 +81,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
   const [giving, setGiving] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
   const [insufficientMsg, setInsufficientMsg] = useState(false);
+  const [maxedMsg, setMaxedMsg] = useState(false);
   const [giftFlyFx, setGiftFlyFx] = useState<{ emoji: string; key: number }>({ emoji: "", key: 0 });
   const [reactKey, setReactKey] = useState(0);
   const [burstKey, setBurstKey] = useState(0);
@@ -160,6 +162,17 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
     if (giving || !species) return;
     const gift = GIFT_OPTIONS.find((g) => g.id === giftId);
     if (!gift) return;
+
+    if (hearts >= MAX_HEARTS) {
+      // "最好的朋友" is the last stage — hearts past this point don't
+      // unlock anything, so letting a gift go through here would just
+      // spend stars for nothing.
+      playInsufficientSound();
+      speak(`${displayName}已經是最好的朋友了，愛心已經點滿，不用再送禮物囉！`);
+      setMaxedMsg(true);
+      window.setTimeout(() => setMaxedMsg(false), 2200);
+      return;
+    }
 
     if (available < gift.cost) {
       playInsufficientSound();
@@ -476,17 +489,28 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
             再學幾個字，就有星星送禮物囉
           </p>
         )}
-        <div style={{ display: "flex", gap: 8 }}>
-          {GIFT_OPTIONS.map((gift) => (
-            <GiftCard
-              key={gift.id}
-              gift={gift}
-              affordable={available >= gift.cost}
-              disabled={giving}
-              onClick={() => handleGift(gift.id)}
-            />
-          ))}
-        </div>
+        {maxedMsg && (
+          <p style={{ textAlign: "center", color: "var(--color-danger)", fontSize: "0.85rem", margin: "0 0 10px" }}>
+            愛心已經點滿，不用再送禮物囉
+          </p>
+        )}
+        {hearts >= MAX_HEARTS ? (
+          <p style={{ textAlign: "center", color: "var(--color-text-muted)", fontSize: "0.9rem", margin: 0 }}>
+            💖 已經是最好的朋友了，愛心點滿囉！
+          </p>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            {GIFT_OPTIONS.map((gift) => (
+              <GiftCard
+                key={gift.id}
+                gift={gift}
+                affordable={available >= gift.cost}
+                disabled={giving}
+                onClick={() => handleGift(gift.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {Array.from({ length: stageIdx + 1 }, (_, i) => stageIdx - i).map((idx) => (

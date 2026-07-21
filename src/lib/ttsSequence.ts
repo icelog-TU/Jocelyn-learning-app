@@ -94,10 +94,19 @@ export function speakSequence(parts: string[], options: SpeakSequenceOptions = {
   // unconditionally as a guard against that stuck state.
   window.speechSynthesis.resume();
 
+  let fallbackTimer: number | null = null;
+  function finish() {
+    if (fallbackTimer !== null) {
+      window.clearTimeout(fallbackTimer);
+      fallbackTimer = null;
+    }
+    resolveDone();
+  }
+
   let completedCount = 0;
   function onOneSettled() {
     completedCount += 1;
-    if (completedCount === parts.length && !cancelled) resolveDone();
+    if (completedCount === parts.length && !cancelled) finish();
   }
 
   parts.forEach((part, index) => {
@@ -113,10 +122,25 @@ export function speakSequence(parts: string[], options: SpeakSequenceOptions = {
     window.speechSynthesis.speak(utterance);
   });
 
+  // Safety net: on some devices the speech engine occasionally never fires
+  // onstart/onend for one or more utterances at all (e.g. voices still
+  // loading, a one-off engine hiccup) — with nothing else driving `done`,
+  // that silently stranded whatever screen was waiting on it forever (the
+  // reported symptom: a reading step that never finishes, no highlight, no
+  // audio, and no way forward except "skip"). A per-character ceiling, generous
+  // enough that real playback always finishes well before it fires, forces
+  // the sequence to resolve anyway so the app can always make progress.
+  const FALLBACK_MS_PER_PART = 3000;
+  const FALLBACK_BASE_MS = 2000;
+  fallbackTimer = window.setTimeout(() => {
+    if (!cancelled) finish();
+  }, parts.length * FALLBACK_MS_PER_PART + FALLBACK_BASE_MS);
+
   return {
     done,
     cancel: () => {
       cancelled = true;
+      if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
       window.speechSynthesis.cancel();
     },
   };
