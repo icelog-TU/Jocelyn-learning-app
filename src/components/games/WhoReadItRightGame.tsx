@@ -3,6 +3,7 @@ import type { SentenceDoc } from "../../types";
 import { SentenceCard } from "../SentenceCard";
 import {
   speakSequence,
+  filterHanWithIndices,
   DEFAULT_RATE,
   HIGHLIGHT_READING_RATE_MULTIPLIER,
   type SpeakSequenceHandle,
@@ -35,8 +36,19 @@ interface AnimalOption {
  * correct reading, both let her act immediately instead of only after a
  * fixed "listen to everything first" gate. */
 export function WhoReadItRightGame({ sentence, onComplete, onSkip }: Props) {
-  const correctChars = useMemo(
-    () => Array.from(sentence.text).filter((c) => /\p{Script=Han}/u.test(c)),
+  // `indices` maps a position in `correctChars` (and, since every wrong
+  // variant is just a same-length reshuffle of it, in every wrong variant
+  // too) back to that character's real position in `sentence.text` —
+  // needed because `sentence.text` includes punctuation that `correctChars`
+  // deliberately doesn't, so "index i" means something different in each
+  // array. Without this, an animal's Nth *spoken* character (which skips
+  // punctuation) was highlighting the SentenceCard's Nth *rendered*
+  // character (which doesn't) — close enough to look right on a sentence
+  // with no punctuation, but on one with a comma or period it visibly
+  // highlighted the punctuation mark itself while a real character was
+  // being read aloud, like the comma had been "read" as that character.
+  const { chars: correctChars, indices: hanIndices } = useMemo(
+    () => filterHanWithIndices(Array.from(sentence.text)),
     [sentence.id],
   );
 
@@ -92,7 +104,7 @@ export function WhoReadItRightGame({ sentence, onComplete, onSkip }: Props) {
     const seq = speakSequence(opt.chars, {
       pitch: opt.pitch,
       rate: DEFAULT_RATE * HIGHLIGHT_READING_RATE_MULTIPLIER,
-      onCharStart: setActiveIndex,
+      onCharStart: (i) => setActiveIndex(hanIndices[i]),
     });
     currentSeqRef.current = seq;
     seq.done.then(() => {
