@@ -51,6 +51,10 @@ interface Props {
   weakChars?: Set<string>;
   /** Toggles a character in/out of the weak-chars list. */
   onToggleWeakChar?: (char: string) => void;
+  /** Fires exactly once, the moment the session first reaches its
+   * completion screen — used to release a staged 老師準備區 character into
+   * the normal learned pool right when the child finishes practicing it. */
+  onSessionComplete?: () => void;
 }
 
 /** Practices a fixed list of sentences end-to-end, awarding stars per correct
@@ -63,6 +67,7 @@ export function SentencePracticeSession({
   activeFooter,
   weakChars,
   onToggleWeakChar,
+  onSessionComplete,
 }: Props) {
   const [localSession, setLocalSession] = useState(session);
   const [index, setIndex] = useState(0);
@@ -129,6 +134,7 @@ export function SentencePracticeSession({
   useEffect(() => {
     if (!isComplete || celebratedRef.current) return;
     celebratedRef.current = true;
+    onSessionComplete?.();
     playCelebrationSound();
     speak(`太棒了！這次唸了${localSession.length}句，得到${starsEarned}顆星星！`, {
       rate: 1,

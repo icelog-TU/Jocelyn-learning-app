@@ -148,6 +148,7 @@ function App() {
               weakChars={weakCharSet}
               onToggleWeakChar={toggleWeakChar}
               stagedCharacters={stagedCharacters}
+              stagedSentences={stagedSentences}
             />
           }
         />

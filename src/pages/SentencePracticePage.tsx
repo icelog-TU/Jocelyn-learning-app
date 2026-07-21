@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import type { CharacterDoc, SentenceDifficulty, SentenceDoc } from "../types";
 import { pickReviewSession } from "../lib/review";
 import {
@@ -10,7 +10,7 @@ import {
   isSentencePracticeConfigured,
   recentTargetChars,
 } from "../lib/sentencePractice";
-import { saveSentenceBatch } from "../lib/store";
+import { releaseStagedCharacterAndSentences, saveSentenceBatch } from "../lib/store";
 import { speak } from "../lib/speech";
 import { SentencePracticeSession } from "../components/SentencePracticeSession";
 import { GenerateSentenceDialog } from "../components/GenerateSentenceDialog";
@@ -57,6 +57,10 @@ interface Props {
    * glancing at this page can see what's ready to teach next without a
    * separate trip to 老師準備區. */
   stagedCharacters: CharacterDoc[];
+  /** Prepared sentences for the staged characters above — this page is
+   * child-facing, so tapping a staged character practices these directly
+   * instead of sending the child into 老師準備區. */
+  stagedSentences: SentenceDoc[];
 }
 
 function draftKey(): string {
@@ -71,9 +75,18 @@ export function SentencePracticePage({
   weakChars,
   onToggleWeakChar,
   stagedCharacters,
+  stagedSentences,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [session, setSession] = useState<SentenceDoc[]>([]);
+  // Set only while practicing a staged 老師準備區 character's sentences
+  // directly from this page's preview row — cleared once the session
+  // completes and the character/sentences are released into the normal
+  // learned pool (see onSessionComplete below).
+  const [stagedRelease, setStagedRelease] = useState<{
+    characterId: string;
+    sentenceIds: string[];
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [modeError, setModeError] = useState<string | null>(null);
   const [charFilterInput, setCharFilterInput] = useState("");
@@ -193,6 +206,10 @@ export function SentencePracticePage({
       return;
     }
     setModeError(null);
+    // Any of these generic review pools could follow a staged practice
+    // session that never actually reached its completion screen — clear the
+    // pending release so it can't misfire against this unrelated session.
+    setStagedRelease(null);
     setSession(pickReviewSession(pool, SESSION_SIZE));
     setPhase("ready");
   }
@@ -221,6 +238,22 @@ export function SentencePracticePage({
     startSessionFromPool(sentences.filter((s) => s.sourceChars[0] === char));
   }
 
+  // Tapping a 準備好可以學的生字 chip practices its prepared batch directly —
+  // this page is child-facing, so she must never be sent into 老師準備區.
+  // Release into the normal learned pool happens on session completion (see
+  // onSessionComplete passed to SentencePracticeSession below).
+  function startStagedCharPractice(char: CharacterDoc) {
+    const pool = stagedSentences.filter((s) => s.sourceChars[0] === char.hanzi);
+    if (pool.length === 0) {
+      setModeError("這個字還沒有準備好的句子。");
+      return;
+    }
+    setModeError(null);
+    setStagedRelease({ characterId: char.id, sentenceIds: pool.map((s) => s.id) });
+    setSession(pool);
+    setPhase("ready");
+  }
+
   function backToModeSelect() {
     setModeError(null);
     setCharFilterInput("");
@@ -245,6 +278,7 @@ export function SentencePracticePage({
     if (phase !== "waiting-for-sync") return;
     const fresh = sentences.filter((s) => s.createdAt >= generationMarkerRef.current);
     if (fresh.length > 0) {
+      setStagedRelease(null);
       setSession(fresh.slice(0, SESSION_SIZE));
       setPhase("ready");
     }
@@ -341,7 +375,11 @@ export function SentencePracticePage({
 
         <RecentTargetChars sentences={sentences} onPractice={startTargetCharReview} />
 
-        <PreparedCharsPreview stagedCharacters={stagedCharacters} />
+        <PreparedCharsPreview
+          stagedCharacters={stagedCharacters}
+          stagedSentences={stagedSentences}
+          onPractice={startStagedCharPractice}
+        />
 
         <div className="card" style={{ marginBottom: 16 }}>
           <button
@@ -479,6 +517,18 @@ export function SentencePracticePage({
         familyCode={familyCode}
         weakChars={weakChars}
         onToggleWeakChar={onToggleWeakChar}
+        onSessionComplete={
+          stagedRelease
+            ? () => {
+                releaseStagedCharacterAndSentences(
+                  familyCode,
+                  stagedRelease.characterId,
+                  stagedRelease.sentenceIds,
+                );
+                setStagedRelease(null);
+              }
+            : undefined
+        }
         completionActions={
           <>
             <button className="btn btn-secondary btn-block" style={{ marginTop: 16 }} onClick={backToModeSelect}>
@@ -609,20 +659,32 @@ function RecentTargetChars({
   );
 }
 
-/** Preview of characters already staged in 老師準備區 — sentences prepared
- * ahead of time, but not yet released to the child (see App.tsx's
+/** Preview of characters already staged in 老師準備區 with a prepared
+ * sentence batch, but not yet released to the child (see App.tsx's
  * staged/unstaged split). Surfaced here, right below what she's already
  * learning, so a glance at this one page shows both "what she just learned"
- * and "what's ready to teach next" without a separate trip to 老師準備區.
- * Read-only here: tapping a chip just opens 老師準備區 itself (where the
- * actual "今天開始教這個字" release action lives) rather than trying to
- * practice staged content directly, since it deliberately isn't real
- * learned content yet. */
-function PreparedCharsPreview({ stagedCharacters }: { stagedCharacters: CharacterDoc[] }) {
-  const navigate = useNavigate();
-  if (stagedCharacters.length === 0) return null;
-
-  const chars = [...stagedCharacters].sort((a, b) => b.addedAt - a.addedAt);
+ * and "what's ready to teach next".
+ *
+ * This page is child-facing, so tapping a chip must NEVER send her into
+ * 老師準備區 — instead it starts practicing that character's prepared
+ * sentences directly, right here. Finishing the batch releases the
+ * character into the normal learned pool (handled by the caller via
+ * onPractice + onSessionComplete), which is what actually moves it up into
+ * 最近生字. Characters without any staged sentences yet are filtered out,
+ * since there'd be nothing to practice. */
+function PreparedCharsPreview({
+  stagedCharacters,
+  stagedSentences,
+  onPractice,
+}: {
+  stagedCharacters: CharacterDoc[];
+  stagedSentences: SentenceDoc[];
+  onPractice: (char: CharacterDoc) => void;
+}) {
+  const readyChars = stagedCharacters
+    .filter((c) => stagedSentences.some((s) => s.sourceChars[0] === c.hanzi))
+    .sort((a, b) => b.addedAt - a.addedAt);
+  if (readyChars.length === 0) return null;
 
   return (
     <div className="card" style={{ marginBottom: 16 }}>
@@ -637,21 +699,21 @@ function PreparedCharsPreview({ stagedCharacters }: { stagedCharacters: Characte
         type="button"
         style={{ ...speakableStyle, color: "var(--color-text-muted)", fontSize: "0.85rem", marginBottom: 12 }}
         onClick={() =>
-          speak("老師準備區裡已經準備好句子、還沒開始教的字，點一下可以去老師準備區看看。")
+          speak("已經準備好句子的新字，點一下就可以馬上開始練習，練完這個字就會變成學過的字。")
         }
       >
-        老師準備區裡已經準備好句子、還沒開始教的字；點一下去老師準備區繼續準備或開始教這個字。
+        已經準備好句子的新字；點一下就可以馬上開始練習，練完這個字就會變成學過的字。
       </button>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
-        {chars.map((c) => (
+        {readyChars.map((c) => (
           <button
             key={c.id}
             type="button"
             onClick={() => {
               speak(c.hanzi);
-              navigate("/teacher-prep");
+              onPractice(c);
             }}
-            aria-label={`「${c.hanzi}」已經準備好，去老師準備區繼續`}
+            aria-label={`練習新字「${c.hanzi}」`}
             style={{
               padding: "10px 4px",
               borderRadius: 14,
