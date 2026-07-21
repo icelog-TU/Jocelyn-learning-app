@@ -147,6 +147,7 @@ function App() {
               familyCode={familyCode}
               weakChars={weakCharSet}
               onToggleWeakChar={toggleWeakChar}
+              stagedCharacters={stagedCharacters}
             />
           }
         />

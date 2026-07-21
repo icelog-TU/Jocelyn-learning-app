@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { CharacterDoc, SentenceDifficulty, SentenceDoc } from "../types";
 import { pickReviewSession } from "../lib/review";
 import {
@@ -52,6 +52,11 @@ interface Props {
   familyCode: string;
   weakChars: Set<string>;
   onToggleWeakChar: (char: string) => void;
+  /** Characters staged in 老師準備區 (sentences already prepared, but not
+   * yet released to the child) — shown here as a preview so a parent
+   * glancing at this page can see what's ready to teach next without a
+   * separate trip to 老師準備區. */
+  stagedCharacters: CharacterDoc[];
 }
 
 function draftKey(): string {
@@ -65,6 +70,7 @@ export function SentencePracticePage({
   familyCode,
   weakChars,
   onToggleWeakChar,
+  stagedCharacters,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [session, setSession] = useState<SentenceDoc[]>([]);
@@ -335,6 +341,8 @@ export function SentencePracticePage({
 
         <RecentTargetChars sentences={sentences} onPractice={startTargetCharReview} />
 
+        <PreparedCharsPreview stagedCharacters={stagedCharacters} />
+
         <div className="card" style={{ marginBottom: 16 }}>
           <button
             type="button"
@@ -540,7 +548,7 @@ export function SentencePracticePage({
 /** Quick-access row for the daily "one new character, five sentences"
  * workflow: the most recently taught target characters, newest first, each
  * jumping straight into that day's own batch instead of having to dig
- * through 句子紀錄. Characters age out of this row once more than 10 newer
+ * through 句子紀錄. Characters age out of this row once more than 20 newer
  * ones exist — their sentences aren't touched, they just lose this shortcut. */
 /** Deliberately has no per-character edit shortcut here — this row sits
  * right next to the big colorful practice buttons a young child taps
@@ -555,7 +563,7 @@ function RecentTargetChars({
   sentences: SentenceDoc[];
   onPractice: (char: string) => void;
 }) {
-  const chars = recentTargetChars(sentences, 10);
+  const chars = recentTargetChars(sentences, 20);
   if (chars.length === 0) return null;
 
   return (
@@ -570,9 +578,9 @@ function RecentTargetChars({
       <button
         type="button"
         style={{ ...speakableStyle, color: "var(--color-text-muted)", fontSize: "0.85rem", marginBottom: 12 }}
-        onClick={() => speak("按字直接複習那一天學的句子，最多保留最近十個字。")}
+        onClick={() => speak("按字直接複習那一天學的句子，最多保留最近二十個字。")}
       >
-        按字直接複習那一天學的句子（最新在最左邊），最多保留最近 10 個字。
+        按字直接複習那一天學的句子（最新在最左邊），最多保留最近 20 個字。
       </button>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
         {chars.map((char) => (
@@ -594,6 +602,69 @@ function RecentTargetChars({
             }}
           >
             {char}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Preview of characters already staged in 老師準備區 — sentences prepared
+ * ahead of time, but not yet released to the child (see App.tsx's
+ * staged/unstaged split). Surfaced here, right below what she's already
+ * learning, so a glance at this one page shows both "what she just learned"
+ * and "what's ready to teach next" without a separate trip to 老師準備區.
+ * Read-only here: tapping a chip just opens 老師準備區 itself (where the
+ * actual "今天開始教這個字" release action lives) rather than trying to
+ * practice staged content directly, since it deliberately isn't real
+ * learned content yet. */
+function PreparedCharsPreview({ stagedCharacters }: { stagedCharacters: CharacterDoc[] }) {
+  const navigate = useNavigate();
+  if (stagedCharacters.length === 0) return null;
+
+  const chars = [...stagedCharacters].sort((a, b) => b.addedAt - a.addedAt);
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <button
+        type="button"
+        style={{ ...speakableStyle, fontWeight: 700, marginBottom: 4 }}
+        onClick={() => speak("準備好可以學的生字")}
+      >
+        📦 準備好可以學的生字
+      </button>
+      <button
+        type="button"
+        style={{ ...speakableStyle, color: "var(--color-text-muted)", fontSize: "0.85rem", marginBottom: 12 }}
+        onClick={() =>
+          speak("老師準備區裡已經準備好句子、還沒開始教的字，點一下可以去老師準備區看看。")
+        }
+      >
+        老師準備區裡已經準備好句子、還沒開始教的字；點一下去老師準備區繼續準備或開始教這個字。
+      </button>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+        {chars.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => {
+              speak(c.hanzi);
+              navigate("/teacher-prep");
+            }}
+            aria-label={`「${c.hanzi}」已經準備好，去老師準備區繼續`}
+            style={{
+              padding: "10px 4px",
+              borderRadius: 14,
+              border: "none",
+              background: "#eef2fb",
+              color: "var(--color-secondary)",
+              fontSize: "1.1rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              wordBreak: "break-all",
+            }}
+          >
+            {c.hanzi}
           </button>
         ))}
       </div>
