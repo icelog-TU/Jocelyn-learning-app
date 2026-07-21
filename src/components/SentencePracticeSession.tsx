@@ -104,17 +104,25 @@ export function SentencePracticeSession({
     return modeQueueRef.current.shift()!;
   }
 
+  // Silences any speech still queued/playing (e.g. a game's closing praise
+  // line that hadn't finished yet) so it can't bleed into a new round's
+  // screen and sound like it belongs to whatever is now on screen. Wrapped
+  // because a throw here (seen on some real devices) would otherwise abort
+  // the effect before `setMode` below ever ran, permanently stranding the
+  // round on whatever it was already showing.
+  function safeCancelSpeech() {
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {
+      // Nothing more productive to do — see above.
+    }
+  }
+
   useEffect(() => {
     if (isComplete) return;
-    // Silences any speech still queued/playing from the previous round
-    // (e.g. a game's closing praise line that hadn't finished yet) so it
-    // can't bleed into this new round's screen and sound like it belongs
-    // to whatever is now on screen.
-    window.speechSynthesis?.cancel();
+    safeCancelSpeech();
     setMode(nextRoundMode());
-    return () => {
-      window.speechSynthesis?.cancel();
-    };
+    return safeCancelSpeech;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id]);
 

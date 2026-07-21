@@ -39,14 +39,20 @@ function pickVoice(hints: string[]): SpeechSynthesisVoice | undefined {
 export const webSpeechVoiceProvider: VoiceProvider = {
   speak(text, profile) {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "zh-TW";
-    utterance.rate = profile.rate;
-    utterance.pitch = profile.pitch;
-    const voice = pickVoice(profile.voiceNameHints);
-    if (voice) utterance.voice = voice;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
+    try {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "zh-TW";
+      utterance.rate = profile.rate;
+      utterance.pitch = profile.pitch;
+      const voice = pickVoice(profile.voiceNameHints);
+      if (voice) utterance.voice = voice;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      // Called inline from onClick handlers purely for auditory feedback —
+      // a throw from cancel()/speak() on some device shouldn't be able to
+      // silently abort whatever the button was actually supposed to do.
+    }
   },
 };
 

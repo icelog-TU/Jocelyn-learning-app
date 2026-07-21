@@ -87,16 +87,6 @@ export function speakSequence(parts: string[], options: SpeakSequenceOptions = {
     resolveDone();
     return { done, cancel: () => {} };
   }
-  window.speechSynthesis.cancel();
-  // Chrome (notably on Android) has a long-standing bug where the speech
-  // queue can end up silently stuck in a "paused" state — e.g. after a tab
-  // was backgrounded, or sometimes just after a cancel() — so newly queued
-  // utterances sit there for a while before actually starting to play. That
-  // would show up as exactly what got reported: gaps between characters
-  // that come and go rather than a constant, predictable delay. `resume()`
-  // is a harmless no-op when the queue isn't paused, so it's safe to call
-  // unconditionally as a guard against that stuck state.
-  window.speechSynthesis.resume();
 
   let fallbackTimer: number | null = null;
   function finish() {
@@ -107,45 +97,80 @@ export function speakSequence(parts: string[], options: SpeakSequenceOptions = {
     resolveDone();
   }
 
+  // Safety net, armed FIRST — before touching `speechSynthesis` at all —
+  // and deliberately short. Real per-character playback at this rate
+  // finishes in well under a second per character, so even a generous
+  // ceiling here is nowhere close to how long normal speech actually
+  // takes; it exists purely to recover when the engine goes completely
+  // silent (no onstart/onend/onerror for anything, observed on some real
+  // devices) rather than stranding the screen forever with no sound, no
+  // highlight, and no way forward except "skip". Arming it before any
+  // risky call below means even a synchronous throw from cancel()/
+  // resume()/speak() itself — which turned out to still leave `done`
+  // hanging with no recovery at all, since a throw there used to skip
+  // past the code that used to set this timer up afterward — still can't
+  // prevent `done` from eventually resolving.
+  const FALLBACK_MS_PER_PART = 900;
+  const FALLBACK_BASE_MS = 1200;
+  fallbackTimer = window.setTimeout(() => {
+    if (!cancelled) finish();
+  }, parts.length * FALLBACK_MS_PER_PART + FALLBACK_BASE_MS);
+
   let completedCount = 0;
   function onOneSettled() {
     completedCount += 1;
     if (completedCount === parts.length && !cancelled) finish();
   }
 
-  parts.forEach((part, index) => {
-    const utterance = new SpeechSynthesisUtterance(part);
-    utterance.lang = "zh-TW";
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-    utterance.onstart = () => onCharStart?.(index);
-    utterance.onend = onOneSettled;
-    // Some engines fire "error" (e.g. interrupted by a cancel()) instead of
-    // "end" — treat it the same as settling, so `done` never hangs.
-    utterance.onerror = onOneSettled;
-    window.speechSynthesis.speak(utterance);
-  });
-
-  // Safety net: on some devices the speech engine occasionally never fires
-  // onstart/onend for one or more utterances at all (e.g. voices still
-  // loading, a one-off engine hiccup) — with nothing else driving `done`,
-  // that silently stranded whatever screen was waiting on it forever (the
-  // reported symptom: a reading step that never finishes, no highlight, no
-  // audio, and no way forward except "skip"). A per-character ceiling, generous
-  // enough that real playback always finishes well before it fires, forces
-  // the sequence to resolve anyway so the app can always make progress.
-  const FALLBACK_MS_PER_PART = 3000;
-  const FALLBACK_BASE_MS = 2000;
-  fallbackTimer = window.setTimeout(() => {
-    if (!cancelled) finish();
-  }, parts.length * FALLBACK_MS_PER_PART + FALLBACK_BASE_MS);
+  try {
+    // Chrome (notably on Android) has a long-standing bug where the speech
+    // queue can end up silently stuck in a "paused" state — e.g. after a
+    // tab was backgrounded, or sometimes just after a cancel() — so newly
+    // queued utterances sit there for a while before actually starting to
+    // play. That would show up as exactly what got reported: gaps between
+    // characters that come and go rather than a constant, predictable
+    // delay. `resume()` is a harmless no-op when the queue isn't paused,
+    // so it's safe to call unconditionally as a guard against that stuck
+    // state.
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
+    parts.forEach((part, index) => {
+      try {
+        const utterance = new SpeechSynthesisUtterance(part);
+        utterance.lang = "zh-TW";
+        utterance.rate = rate;
+        utterance.pitch = pitch;
+        utterance.onstart = () => onCharStart?.(index);
+        utterance.onend = onOneSettled;
+        // Some engines fire "error" (e.g. interrupted by a cancel())
+        // instead of "end" — treat it the same as settling, so `done`
+        // never hangs.
+        utterance.onerror = onOneSettled;
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        // A single utterance failing to even queue shouldn't take the
+        // rest of the sentence down with it — count it as settled right
+        // away so completedCount can still reach parts.length normally.
+        onOneSettled();
+      }
+    });
+  } catch {
+    // speechSynthesis itself misbehaved (e.g. cancel()/resume() threw).
+    // Nothing more to do here — the fallback timer armed above still
+    // guarantees `done` resolves before too long.
+  }
 
   return {
     done,
     cancel: () => {
       cancelled = true;
       if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
-      window.speechSynthesis.cancel();
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // Already broken in whatever way made this cancel() unreliable —
+        // nothing productive to do about it here.
+      }
     },
   };
 }
