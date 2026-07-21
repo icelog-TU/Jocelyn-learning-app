@@ -4,7 +4,15 @@ import type { CharacterDoc, SentenceDoc, WeakCharDoc } from "../types";
 import { dateKey } from "../lib/characters";
 import { masteryLabel } from "../lib/review";
 import { DIFFICULTY_LABELS } from "../lib/sentencePractice";
-import { removeCharacter, removeWeakCharEntry, saveWeakChar, usingCloudSync } from "../lib/store";
+import {
+  editSentenceText,
+  removeCharacter,
+  removeSentence,
+  removeWeakCharEntry,
+  saveSentenceBatch,
+  saveWeakChar,
+  usingCloudSync,
+} from "../lib/store";
 import { backupLocalDataToCloud, peekLocalBackupSummary, type LocalBackupSummary } from "../lib/backup";
 
 interface Props {
@@ -125,7 +133,7 @@ export function HistoryPage({ characters, sentences, weakChars, familyCode }: Pr
           )}
         </>
       ) : (
-        <SentenceHistory sentences={sentences} />
+        <SentenceHistory sentences={sentences} familyCode={familyCode} />
       )}
     </div>
   );
@@ -511,12 +519,65 @@ function CharacterHistory({ characters, familyCode }: { characters: CharacterDoc
   );
 }
 
-function SentenceHistory({ sentences }: { sentences: SentenceDoc[] }) {
+function SentenceHistory({ sentences, familyCode }: { sentences: SentenceDoc[]; familyCode: string }) {
   const navigate = useNavigate();
   const groups = groupSentencesByDate(sentences);
 
+  // Inline edit/delete/add lives right here (rather than only on the
+  // separate "管理句子庫" page) because sentences are already grouped by
+  // their source character in this view — seeing all of a character's
+  // sentences together is exactly when adding or dropping one makes sense,
+  // without having to go find them again on another page.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [addingBatchKey, setAddingBatchKey] = useState<string | null>(null);
+  const [addDraft, setAddDraft] = useState("");
+  const [addSaving, setAddSaving] = useState(false);
+
   function practiceBatch(batch: SentenceBatch) {
     navigate("/sentences/batch", { state: { ids: batch.sentences.map((s) => s.id) } });
+  }
+
+  function startEdit(s: SentenceDoc) {
+    setEditingId(s.id);
+    setEditDraft(s.text);
+  }
+
+  async function saveEdit(id: string) {
+    const trimmed = editDraft.trim();
+    if (trimmed) {
+      await editSentenceText(familyCode, id, trimmed);
+    }
+    setEditingId(null);
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("確定要刪除這句話嗎？")) return;
+    await removeSentence(familyCode, id);
+  }
+
+  function startAdd(batchKey: string) {
+    setAddingBatchKey(batchKey);
+    setAddDraft("");
+  }
+
+  async function handleAddSentence(batch: SentenceBatch) {
+    const trimmed = addDraft.trim();
+    if (!trimmed) return;
+    setAddSaving(true);
+    try {
+      await saveSentenceBatch(
+        familyCode,
+        [{ text: trimmed, origin: "user" }],
+        batch.sourceChars,
+        batch.sentences[0]?.difficulty ?? "medium",
+        false,
+      );
+      setAddingBatchKey(null);
+      setAddDraft("");
+    } finally {
+      setAddSaving(false);
+    }
   }
 
   return (
@@ -585,23 +646,123 @@ function SentenceHistory({ sentences }: { sentences: SentenceDoc[] }) {
                     🔁 練習這批
                   </button>
                 </div>
-                {batch.sentences.map((s) => (
-                  <div
-                    key={s.id}
+                {batch.sentences.map((s) =>
+                  editingId === s.id ? (
+                    <div key={s.id} style={{ padding: "6px 0" }}>
+                      <textarea
+                        value={editDraft}
+                        onChange={(e) => setEditDraft(e.target.value)}
+                        rows={2}
+                        autoFocus
+                        style={{
+                          width: "100%",
+                          fontSize: "1rem",
+                          padding: 8,
+                          borderRadius: 10,
+                          border: "2px solid #eee0d0",
+                        }}
+                      />
+                      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                        <button
+                          className="btn btn-outline"
+                          style={{ flex: 1, fontSize: "0.8rem", padding: "6px 12px" }}
+                          onClick={() => setEditingId(null)}
+                        >
+                          取消
+                        </button>
+                        <button
+                          className="btn btn-primary"
+                          style={{ flex: 1, fontSize: "0.8rem", padding: "6px 12px" }}
+                          onClick={() => saveEdit(s.id)}
+                        >
+                          儲存
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      key={s.id}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "4px 0",
+                      }}
+                    >
+                      <span style={{ fontSize: "1.05rem" }}>{s.text}</span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                        <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
+                          {masteryLabel(s.stats.box)}
+                        </span>
+                        <button
+                          onClick={() => startEdit(s)}
+                          aria-label={`修改「${s.text}」`}
+                          style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem", padding: 4 }}
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => handleDelete(s.id)}
+                          aria-label={`刪除「${s.text}」`}
+                          style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem", padding: 4 }}
+                        >
+                          🗑
+                        </button>
+                      </span>
+                    </div>
+                  ),
+                )}
+
+                {addingBatchKey === batch.key ? (
+                  <div style={{ padding: "8px 0 0" }}>
+                    <textarea
+                      value={addDraft}
+                      onChange={(e) => setAddDraft(e.target.value)}
+                      rows={2}
+                      autoFocus
+                      placeholder={`寫一句用到「${batch.sourceChars[0] ?? ""}」的新句子`}
+                      style={{
+                        width: "100%",
+                        fontSize: "1rem",
+                        padding: 8,
+                        borderRadius: 10,
+                        border: "2px solid #eee0d0",
+                      }}
+                    />
+                    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                      <button
+                        className="btn btn-outline"
+                        style={{ flex: 1, fontSize: "0.8rem", padding: "6px 12px" }}
+                        onClick={() => setAddingBatchKey(null)}
+                      >
+                        取消
+                      </button>
+                      <button
+                        className="btn btn-primary"
+                        style={{ flex: 1, fontSize: "0.8rem", padding: "6px 12px" }}
+                        disabled={addSaving}
+                        onClick={() => handleAddSentence(batch)}
+                      >
+                        {addSaving ? "新增中…" : "儲存"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => startAdd(batch.key)}
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "4px 0",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--color-primary)",
+                      fontSize: "0.85rem",
+                      padding: "6px 0 0",
                     }}
                   >
-                    <span style={{ fontSize: "1.05rem" }}>{s.text}</span>
-                    <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", flexShrink: 0 }}>
-                      {masteryLabel(s.stats.box)}
-                    </span>
-                  </div>
-                ))}
+                    ➕ 在這裡新增一句
+                  </button>
+                )}
               </div>
             ))}
           </div>
