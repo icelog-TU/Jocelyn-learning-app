@@ -57,56 +57,120 @@ export const AFFECTION_STAGES = [
  * still happily spent stars for zero further effect. */
 export const MAX_HEARTS = AFFECTION_STAGES[AFFECTION_STAGES.length - 1].threshold;
 
-// Stage 0 — 初次見面 (always shown; hasn't unlocked anything yet).
+// Stage 0 — 初次見面 (always shown; hasn't unlocked anything yet). Each role
+// gets its own hiding spot + pose so two roles of the same species don't
+// read as the same creature — a distinct action and a distinct place to be
+// peeking out from, per role.
 const ROLE_FIRST_MEETING: Record<CreatureVariant, string> = {
-  grandpa: "{name}看著你，還不熟悉。",
-  grandma: "{name}靜靜地看著你。",
-  dad: "{name}對你點點頭。",
-  mom: "{name}對你微微一笑。",
-  olderBrother: "{name}看了你一眼。",
-  olderSister: "{name}好奇地看著你。",
-  youngerBrother: "{name}躲在旁邊看你。",
-  youngerSister: "{name}偷偷看著你。",
-  baby: "{name}安靜地看著你。",
+  grandpa: "{name}瞇著眼睛，從老樹枝上靜靜地看著你。",
+  grandma: "{name}戴著老花眼鏡，從窗台後面探出頭看著你。",
+  dad: "{name}站在高高的樹梢上，抬頭看著你。",
+  mom: "{name}從溫暖的窩裡探出頭，溫柔地看著你。",
+  olderBrother: "{name}叼著一根小樹枝，從屋頂上看著你。",
+  olderSister: "{name}躲在葉子後面，好奇地看著你。",
+  youngerBrother: "{name}從草叢裡探出頭，眼睛骨碌碌地看著你。",
+  youngerSister: "{name}偷偷地從花朵後面看著你。",
+  baby: "{name}安靜地從大樹上看著你。",
 };
 
-// Stage 1 — 打招呼 (❤️3). A pool per role so it's not always the same line.
+// Stage 1 — 打招呼 (❤️3). A pool per role so it's not always the same line —
+// every sentence names the creature and describes what it's DOING (never a
+// bare quotation mark with the name only trailing after), since this is
+// heard, not read: a child who can't read the screen only has the words
+// actually spoken to figure out who's greeting her and how.
 const ROLE_GREETINGS: Record<CreatureVariant, string[]> = {
-  grandpa: ["「孩子你好啊，我是{name}。」", "「孩子，你來啦。」", "「很高興認識你。」"],
-  grandma: ["「哎呀，是你來啦～我是{name}。」", "「來坐下歇會兒。」", "「又來看我啦，真乖。」"],
-  dad: ["「你好，我是{name}。」", "「嗨，你來了。」", "「很高興見到你。」"],
-  mom: ["「你好呀，我是{name}。」", "「嗨，歡迎你來。」", "「看到你真開心。」"],
-  olderBrother: ["「嘿，我是{name}，罩你！」", "「嘿，你來啦！」", "「又來找我玩啦？」"],
-  olderSister: ["「你好呀，我是{name}。」", "「嗨，好久不見！」", "「你來啦，真開心！」"],
-  youngerBrother: ["「欸嘿，我是{name}！」", "「嘿嘿，你來啦！」", "「我們來玩吧！」"],
-  youngerSister: ["「嗨嗨！我是{name}！」", "「嗨嗨，你來啦！」", "「好開心看到你！」"],
-  baby: ["（揮揮小手）「呀～呀～」", "（咿咿呀呀）", "（笑咪咪揮手）"],
+  grandpa: [
+    "{name}對你微微鞠躬，笑咪咪地跟你打招呼。",
+    "{name}慢慢地揮揮手，跟你打招呼。",
+    "{name}輕輕拍拍你的肩膀，跟你打招呼。",
+  ],
+  grandma: [
+    "{name}張開雙手，笑瞇瞇地跟你打招呼。",
+    "{name}輕輕摸摸你的頭，跟你打招呼。",
+    "{name}給你一個溫暖的擁抱，跟你打招呼。",
+  ],
+  dad: [
+    "{name}挺起胸膛，用力地揮揮手，跟你打招呼。",
+    "{name}舉起手，豪邁地跟你打招呼。",
+    "{name}拍拍胸口，跟你打招呼。",
+  ],
+  mom: [
+    "{name}張開雙手，溫柔地跟你打招呼。",
+    "{name}對你眨眨眼，親切地跟你打招呼。",
+    "{name}輕輕點頭，微笑著跟你打招呼。",
+  ],
+  olderBrother: [
+    "{name}比出一個帥氣的手勢，跟你打招呼。",
+    "{name}舉起手掌，等你來擊掌打招呼。",
+    "{name}比了一個讚，跟你打招呼。",
+  ],
+  olderSister: [
+    "{name}轉了一個圈，開心地跟你打招呼。",
+    "{name}比出一個愛心，跟你打招呼。",
+    "{name}笑著甩甩頭，跟你打招呼。",
+  ],
+  youngerBrother: [
+    "{name}蹦蹦跳跳地跑過來，跟你打招呼。",
+    "{name}舉起雙手，大聲地跟你打招呼。",
+    "{name}轉了一圈，開心地跟你打招呼。",
+  ],
+  youngerSister: [
+    "{name}害羞地揮揮手，小小聲地跟你打招呼。",
+    "{name}踮起腳尖，輕輕地跟你打招呼。",
+    "{name}抱著一朵花，甜甜地跟你打招呼。",
+  ],
+  baby: [
+    "{name}揮揮小手，呀呀地叫著，跟你打招呼。",
+    "{name}咿咿呀呀地笑著，跟你打招呼。",
+    "{name}笑咪咪地揮揮小手，跟你打招呼。",
+  ],
 };
 
-// Stage 2 — 一起玩 (❤️5). Reactions when the creature is tapped/petted.
+// Stage 2 — 一起玩 (❤️5). Which part of the creature the interaction focuses
+// on — shown in the panel's instruction line and echoed by the tone of its
+// reaction below, so all 9 roles of the same species don't share one
+// generic "pat the head" interaction.
+const ROLE_PLAY_ACTION: Record<CreatureVariant, string> = {
+  grandpa: "摸摸牠的鬍子",
+  grandma: "摸摸牠的手",
+  dad: "摸摸牠的肩膀",
+  mom: "摸摸牠的臉頰",
+  olderBrother: "摸摸牠的翅膀",
+  olderSister: "摸摸牠的耳朵",
+  youngerBrother: "摸摸牠的尾巴",
+  youngerSister: "聽聽牠的叫聲",
+  baby: "摸摸牠的頭",
+};
+
+// Reactions when the creature is tapped/petted — tone matches ROLE_PLAY_ACTION
+// above (e.g. youngerSister's "聽聽牠的叫聲" gets an actual call sound back,
+// not a generic "that tickles").
 const ROLE_PAT_REACTIONS: Record<CreatureVariant, string[]> = {
-  grandpa: ["呵呵，真舒服。", "謝謝你呀，孩子。", "摸得剛剛好！"],
-  grandma: ["哎呀，好舒服喔。", "乖孩子，謝謝你。", "嘻嘻，好癢喔！"],
+  grandpa: ["呵呵，鬍子癢癢的！", "謝謝你呀，孩子。", "哈哈，好舒服！"],
+  grandma: ["哎呀，手心暖暖的呢。", "乖孩子，謝謝你。", "嘻嘻，你的手好軟喔！"],
   dad: ["謝啦，真棒！", "嗯，感覺不錯。", "哈，好舒服！"],
-  mom: ["謝謝你喔！", "好舒服，謝謝。", "嘻嘻，真開心！"],
-  olderBrother: ["嘿，謝啦！", "哈哈，好玩！", "再來一次！"],
-  olderSister: ["嘻嘻，好癢喔！", "謝謝你，真棒！", "好舒服喔！"],
-  youngerBrother: ["嘿嘿，好玩！", "再摸一下！", "嘻嘻嘻！"],
-  youngerSister: ["嘻嘻，好癢！", "謝謝你！", "好開心喔！"],
+  mom: ["謝謝你喔，臉頰暖暖的！", "好舒服，謝謝。", "嘻嘻，真開心！"],
+  olderBrother: ["嘿，翅膀癢癢的，謝啦！", "哈哈，好玩！", "再來一次！"],
+  olderSister: ["嘻嘻，耳朵好癢喔！", "謝謝你，真棒！", "好舒服喔！"],
+  youngerBrother: ["嘿嘿，尾巴晃來晃去，好玩！", "再摸一下！", "嘻嘻嘻！"],
+  youngerSister: ["啾啾～你聽到了嗎？", "啾啾啾！好聽吧！", "唱首歌給你聽～"],
   baby: ["咯咯笑！", "呀呀～開心！", "笑咪咪！"],
 };
 
-// Stage 3 — 一封信 (❤️8).
-const ROLE_LETTER: Record<CreatureVariant, string> = {
-  grandpa: "「你是個很棒的孩子。——{name}」",
-  grandma: "「要多吃點，別餓著。——{name}」",
-  dad: "「謝謝你，我很安心。——{name}」",
-  mom: "「謝謝你照顧我們家。——{name}」",
-  olderBrother: "「你是最棒的隊友！——{name}」",
-  olderSister: "「謝謝你常常來看我。——{name}」",
-  youngerBrother: "「下次還要一起玩喔！——{name}」",
-  youngerSister: "「你是我最好的朋友！——{name}」",
-  baby: "（一張歪歪扭扭的塗鴉）",
+// Stage 3 — 一封信 (❤️8). Just the message body — letterText() below wraps
+// it in a narrator frame naming who wrote it. A bare quote followed by a
+// trailing "——name" signature only makes sense to someone reading the page;
+// heard aloud, the name arrives after the sentence it belongs to, too late
+// to mean anything.
+const ROLE_LETTER_MESSAGE: Record<Exclude<CreatureVariant, "baby">, string> = {
+  grandpa: "你是個很棒的孩子。",
+  grandma: "要多吃點，別餓著。",
+  dad: "謝謝你，我很安心。",
+  mom: "謝謝你照顧我們家。",
+  olderBrother: "你是最棒的隊友！",
+  olderSister: "謝謝你常常來看我。",
+  youngerBrother: "下次還要一起玩喔！",
+  youngerSister: "你是我最好的朋友！",
 };
 
 // Stage 4 — 最好的朋友／小秘密 (❤️10). Lead-in line before the profile card.
@@ -147,8 +211,18 @@ export function randomPatReaction(variant: CreatureVariant): string {
   return pick(ROLE_PAT_REACTIONS[variant]);
 }
 
+/** Which part of the creature this role's "一起玩" interaction focuses on —
+ * used both for the panel's instruction line and to keep the reaction pool
+ * above thematically matched. */
+export function playActionText(variant: CreatureVariant): string {
+  return ROLE_PLAY_ACTION[variant];
+}
+
 export function letterText(displayName: string, variant: CreatureVariant): string {
-  return fill(ROLE_LETTER[variant], { name: displayName });
+  if (variant === "baby") {
+    return `${displayName}畫了一張歪歪扭扭的圖畫送給你。`;
+  }
+  return `${displayName}寫給你一封信，信上說：『${ROLE_LETTER_MESSAGE[variant]}』`;
 }
 
 export function secretIntroText(displayName: string, variant: CreatureVariant): string {
@@ -161,6 +235,27 @@ export function randomThanks(variant: CreatureVariant): string {
 
 export function speciesFacts(speciesId: string): SpeciesFlavor | undefined {
   return SPECIES_FLAVOR[speciesId];
+}
+
+/** Narrator-framed versions of the 喜歡／害怕／小秘密 facts, each naming the
+ * creature so a child listening (not reading) the profile card knows whose
+ * favourite thing or fear she's hearing about — "{name} 最喜歡…" rather than
+ * a bare "喜歡太陽" with no subject. Previously only the combined
+ * secretIntroText + secret pairing (the "播放秘密" button) was speakable at
+ * all; 喜歡 and 害怕 had no voice of their own. */
+export function likesText(displayName: string, speciesId: string): string {
+  const facts = speciesFacts(speciesId);
+  return facts ? `${displayName}最喜歡${facts.likes}。` : "";
+}
+
+export function fearText(displayName: string, speciesId: string): string {
+  const facts = speciesFacts(speciesId);
+  return facts ? `${displayName}最害怕${facts.fear}。` : "";
+}
+
+export function secretFactText(displayName: string, speciesId: string): string {
+  const facts = speciesFacts(speciesId);
+  return facts ? `${displayName}的小秘密是：${facts.secret}` : "";
 }
 
 /** Index into AFFECTION_STAGES for the highest stage a given hearts count

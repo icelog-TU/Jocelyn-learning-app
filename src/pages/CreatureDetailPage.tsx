@@ -25,11 +25,15 @@ import {
   AFFECTION_STAGES,
   MAX_HEARTS,
   currentStageIndex,
+  fearText,
   firstMeetingText,
   letterText,
+  likesText,
+  playActionText,
   randomGreeting,
   randomPatReaction,
   randomThanks,
+  secretFactText,
   secretIntroText,
   speciesFacts,
 } from "../lib/affectionContent";
@@ -314,6 +318,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
     }
 
     if (idx === 2) {
+      const playAction = playActionText(typedVariant);
       return (
         <>
           <button
@@ -324,9 +329,19 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
           >
             🤗 一起玩{heartLabel}
           </button>
-          <p style={{ margin: "0 0 10px", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
-            點一下上面的{displayName}，摸摸牠的頭！
-          </p>
+          <button
+            type="button"
+            style={{
+              ...stageTitleStyle,
+              fontWeight: "normal",
+              color: "var(--color-text-muted)",
+              fontSize: "0.9rem",
+              marginBottom: 10,
+            }}
+            onClick={() => speak(`點一下上面的${displayName}，${playAction}！`)}
+          >
+            點一下上面的{displayName}，{playAction}！
+          </button>
           {patText && (
             <p style={{ fontWeight: 700, fontSize: "1.1rem", margin: 0 }}>{patText}</p>
           )}
@@ -386,27 +401,39 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
         </button>
         <p style={{ margin: "0 0 10px" }}>{secretLine}</p>
         <div className="profile-card-grid">
-          <div className="profile-card-row">
+          <button
+            type="button"
+            className="profile-card-row"
+            onClick={() => speakAsRole(likesText(displayName, speciesId), typedVariant)}
+          >
             <span className="profile-card-icon">😍</span>
             <div>
               <span className="profile-card-label">喜歡</span>
               <span className="profile-card-value">{facts?.likes}</span>
             </div>
-          </div>
-          <div className="profile-card-row">
+          </button>
+          <button
+            type="button"
+            className="profile-card-row"
+            onClick={() => speakAsRole(fearText(displayName, speciesId), typedVariant)}
+          >
             <span className="profile-card-icon">😱</span>
             <div>
               <span className="profile-card-label">害怕</span>
               <span className="profile-card-value">{facts?.fear}</span>
             </div>
-          </div>
-          <div className="profile-card-row">
+          </button>
+          <button
+            type="button"
+            className="profile-card-row"
+            onClick={() => speakAsRole(secretFactText(displayName, speciesId), typedVariant)}
+          >
             <span className="profile-card-icon">🤫</span>
             <div>
               <span className="profile-card-label">小秘密</span>
               <span className="profile-card-value">{facts?.secret}</span>
             </div>
-          </div>
+          </button>
         </div>
         <button
           className="btn btn-outline btn-block"

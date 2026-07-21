@@ -170,6 +170,14 @@
   background: #fff8ee;
   border-radius: 12px;
   padding: 10px 12px;
+  /* Rendered as a <button> so each fact is individually speakable — these
+     reset the button-specific defaults the class doesn't already cover. */
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
 }
 
 .profile-card-icon {
