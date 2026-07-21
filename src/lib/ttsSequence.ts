@@ -42,11 +42,15 @@ export const DEFAULT_RATE = 0.85 / 0.75;
 
 /** Extra multiplier applied on top of a base rate specifically for
  * highlighted/karaoke-style reading (a full sentence read one character at a
- * time with `onCharStart` driving the highlight). She confirmed prompts and
- * narration are already paced right — this only compresses the
- * one-character-at-a-time reading itself, roughly halving each character's
- * duration from where it already was. */
-export const HIGHLIGHT_READING_RATE_MULTIPLIER = 2;
+ * time with `onCharStart` driving the highlight) — kept separate from
+ * DEFAULT_RATE because prompts/narration and this state have needed
+ * different pacing before. It was doubled at one point (each character's
+ * duration halved) based on a parent's own read of a demo, but her
+ * 5-year-old actually using it found that too fast — real usage overruled
+ * the earlier guess, so this is back to 1 (same pace as everything else).
+ * The gaplessness between characters (see `speakSequence` below) is
+ * unaffected either way — it comes from pre-queuing, not from rate. */
+export const HIGHLIGHT_READING_RATE_MULTIPLIER = 1;
 
 /** Drops punctuation (and anything else that isn't a Chinese character) from
  * a per-character reading sequence before it ever reaches `speakSequence`.
