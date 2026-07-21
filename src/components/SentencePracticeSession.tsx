@@ -17,11 +17,27 @@ import { shuffled } from "../lib/sentenceGames";
 /** Budget for the completion-screen star count-up animation, in ms. */
 const CELEBRATION_COUNT_BUDGET_MS = 1400;
 
-/** Each round picks one of these ways to interact with the sentence — a
- * batch is always 5 sentences, so with 5 modes the shuffle bag lands each
- * one exactly once per batch instead of ever repeating within it. */
+/** Each round picks one of these ways to interact with the sentence, drawn
+ * from a "shuffle bag" (see modeQueueRef below) so a mode can't stay picked
+ * for very long before every other mode has had a turn — no consecutive
+ * streaks, and no mode going missing for an unlucky number of rounds in a
+ * row.
+ *
+ * "word-order" appears twice in the bag, giving it roughly double the pick
+ * chance of the rest: rebuilding the whole sentence from scratch is the
+ * mode most likely to actually force reading every character in order.
+ * fill-blank in particular can be solved by reading only up to the blank
+ * and shape-matching the pool chip against the character remembered from
+ * the card, without ever decoding the characters after it. */
 type RoundMode = "find-char" | "teach-animal" | "fill-blank" | "word-order" | "who-read-right";
-const ROUND_MODES: RoundMode[] = ["find-char", "teach-animal", "fill-blank", "word-order", "who-read-right"];
+const ROUND_MODES: RoundMode[] = [
+  "find-char",
+  "teach-animal",
+  "fill-blank",
+  "word-order",
+  "word-order",
+  "who-read-right",
+];
 
 interface Props {
   session: SentenceDoc[];
@@ -72,11 +88,13 @@ export function SentencePracticeSession({
    * sentence's persisted stats) instead of just rewinding the index and
    * leaving stale progress behind. */
   const roundHistoryRef = useRef<Array<{ wasCorrect: boolean; stars: number }>>([]);
-  /** A "shuffle bag" of modes: refilled with a freshly-shuffled copy of all
-   * five whenever it runs dry, so every mode is guaranteed to appear before
-   * any of them repeats — plain independent random picks could otherwise
-   * streak the same mode for several sentences in a row, which is exactly
-   * what felt repetitive/boring in practice. */
+  /** A "shuffle bag" of modes: refilled with a freshly-shuffled copy of
+   * ROUND_MODES (word-order counted twice) whenever it runs dry, so a mode
+   * still can't repeat back-to-back or vanish for long stretches — plain
+   * independent random picks could otherwise streak the same mode for
+   * several sentences in a row, which is exactly what felt repetitive/
+   * boring in practice — while word-order's extra entry keeps its overall
+   * share roughly doubled. */
   const modeQueueRef = useRef<RoundMode[]>([]);
 
   function nextRoundMode(): RoundMode {
