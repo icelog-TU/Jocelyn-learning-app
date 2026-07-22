@@ -33,6 +33,276 @@ const SPECIES_FLAVOR: Record<string, SpeciesFlavor> = {
   wolf: { likes: "在雪地裡奔跑", fear: "孤單一個人", secret: "叫聲其實是在跟遠方的朋友說晚安。" },
 };
 
+/** Per-species, per-role elaboration of the species' secret (SPECIES_FLAVOR
+ * above stays the short species-level label shown on the profile card —
+ * this is the richer, age/gender-differentiated version actually spoken
+ * when a role's 小秘密 row is tapped, so a baby, a big sister, and a
+ * grandpa of the same species don't all say the exact same thing). Follows
+ * one consistent shape across every species: baby is instinctively drawn to
+ * it without understanding it yet; the two younger siblings each know a
+ * little and have one named favourite of their own; the two older siblings
+ * know several, gendered the same way the younger pair's is; dad and mom
+ * each have their own grown-up take on it; grandpa and grandma have
+ * mastered it completely and pass it on as family lore. */
+const SPECIES_ROLE_SECRETS: Record<string, Record<CreatureVariant, string>> = {
+  mouse: {
+    baby: "還不知道要把起司藏在哪裡，但很喜歡起司香香的味道，聞到就會很開心。",
+    youngerSister: "枕頭底下藏了一小塊起司，最喜歡的口味是草莓起司。",
+    youngerBrother: "枕頭底下藏了一小塊起司，最喜歡的口味是烤肉起司。",
+    olderSister: "枕頭底下藏了好幾種起司，像是蜂蜜起司、花香起司，還有水果起司。",
+    olderBrother: "枕頭底下藏了好幾種起司，像是辣味起司、燒烤起司，還有大力士起司。",
+    dad: "枕頭底下藏的是特大塊的起司，是全家最大塊的，他說這樣才有安全感。",
+    mom: "枕頭底下藏的是切成小塊、方便分享的起司，隨時可以分給家人吃一點。",
+    grandpa: "已經收藏了上百種起司口味，每一種都能說出它的故事。",
+    grandma: "已經收藏了上百種起司口味，還會教大家怎麼分辨每一種的香味。",
+  },
+  turtle: {
+    baby: "殼裡面還沒有畫什麼圖案，但只要有人願意看，就會害羞地探出頭來。",
+    youngerSister: "殼裡面畫了一顆小小的星星，只給最要好的朋友看過一次。",
+    youngerBrother: "殼裡面畫了一顆小小的星星，得意地跟每個新朋友炫耀。",
+    olderSister: "殼裡面畫了一整排星星和小花，排成一個漂亮的圖案。",
+    olderBrother: "殼裡面畫了一整排星星和閃電，看起來很有速度感。",
+    dad: "殼裡面畫的是全家人的名字，排成一個小小的星星形狀。",
+    mom: "殼裡面畫的是全家人最喜歡的東西，一人一顆星星代表。",
+    grandpa: "殼裡面畫滿了好幾百顆星星，每一顆都代表一個曾經幫助過的朋友。",
+    grandma: "殼裡面畫滿了好幾百顆星星，還會一顆一顆講出背後的故事。",
+  },
+  fox: {
+    baby: "還不太會控制尾巴發光，只有睡著的時候才會微微亮一下。",
+    youngerSister: "尾巴會發出淡淡的粉紅色光，晚上喜歡用它照著故事書看。",
+    youngerBrother: "尾巴會發出淡淡的藍色光，晚上喜歡拿它當手電筒探險。",
+    olderSister: "已經可以控制尾巴的亮度，還能讓光一閃一閃地跟朋友傳暗號。",
+    olderBrother: "已經可以控制尾巴的亮度，喜歡在森林裡幫大家照路探險。",
+    dad: "尾巴的光特別穩定又持久，每天晚上都用它送家人回家。",
+    mom: "尾巴的光特別溫柔，睡前會用它輕輕照著大家，哄大家入睡。",
+    grandpa: "尾巴的光已經練到能照亮一整片森林，還會用光說古老的故事。",
+    grandma: "尾巴的光已經練到能照亮一整片森林，年輕的狐狸都會來跟她學。",
+  },
+  rabbit: {
+    baby: "還不知道要留到最後吃，常常一下子就把葉子吃光光了。",
+    youngerSister: "已經學會留一小片葉子到最後，捨不得一次吃完。",
+    youngerBrother: "已經學會留一小片葉子到最後，但常常忍不住提早偷吃掉。",
+    olderSister: "會把葉子分成好幾份，一份一份慢慢吃，還會跟朋友分享。",
+    olderBrother: "會把葉子留到比賽贏了才吃，當作給自己的獎勵。",
+    dad: "每次都把最好的那片葉子留給家人，自己吃剩下的也很開心。",
+    mom: "會把葉子做成好看的裝飾，捨不得吃，看很久才捨得吃掉。",
+    grandpa: "已經吃過上千種紅蘿蔔葉子，一口就能分辨出是哪裡種的。",
+    grandma: "已經吃過上千種紅蘿蔔葉子，還會教大家怎麼挑最好吃的葉子。",
+  },
+  cat: {
+    baby: "還不知道星星的名字，但是很喜歡星星，看到就會開心地打招呼。",
+    youngerSister: "知道一點點星星的名字，最喜歡的是公主星星。",
+    youngerBrother: "知道一點點星星的名字，最喜歡的是超人星星。",
+    olderSister: "知道好多星星的名字，像是美人魚星星、精靈星星，還有魔法師星星。",
+    olderBrother: "知道好多星星的名字，像是王子星星、騎士星星，還有英雄星星。",
+    dad: "最喜歡的是太陽星星，每天晚上都會找找看它在哪裡。",
+    mom: "最喜歡的是月亮星星，總是溫柔地看著它，說晚安。",
+    grandpa: "知道好幾百顆星星的名字，晚上抬頭一看就能講出好多星星的故事。",
+    grandma: "知道好幾百顆星星的名字，還會把每顆星星的故事編成搖籃曲唱給你聽。",
+  },
+  sheep: {
+    baby: "身上的毛還軟軟蓬蓬的，喜歡整個人窩進雲朵裡睡覺。",
+    youngerSister: "已經有自己專屬的一朵小雲，午睡時間到了就會去找它。",
+    youngerBrother: "已經有自己專屬的一朵小雲，喜歡在雲朵上翻跟斗。",
+    olderSister: "會挑不同形狀的雲朵睡午覺，最喜歡愛心形狀的雲。",
+    olderBrother: "會挑不同形狀的雲朵睡午覺，最喜歡像賽車一樣長長的雲。",
+    dad: "每天都睡在同一朵最厚實的雲上，說這樣最有安全感。",
+    mom: "每天都會鋪一朵軟軟的雲給全家人一起午睡。",
+    grandpa: "已經在雲上睡了好幾萬次午覺，還能靠雲的形狀預測天氣。",
+    grandma: "已經在雲上睡了好幾萬次午覺，身上的毛是全家族裡最柔軟的。",
+  },
+  bird: {
+    baby: "還不會飛得很高，但只要一有陽光灑下來，就會開心地拍拍翅膀。",
+    youngerSister: "已經可以飛到樹梢那麼高，最喜歡看清晨第一道陽光。",
+    youngerBrother: "已經可以飛到樹梢那麼高，最喜歡追著陽光跑來跑去。",
+    olderSister: "已經可以飛到雲朵那麼高，看過好幾種不同顏色的日出。",
+    olderBrother: "已經可以飛到雲朵那麼高，喜歡比賽誰先看到太陽升起。",
+    dad: "每天一早就飛得高高的，看著太陽升起才安心去做別的事。",
+    mom: "每天一早就飛得高高的，看著太陽升起，然後回來叫醒全家人。",
+    grandpa: "飛得比誰都高，看過幾萬次日出，能一眼看出今天天氣好不好。",
+    grandma: "飛得比誰都高，看過幾萬次日出，會把每次看到的顏色都記下來。",
+  },
+  bear: {
+    baby: "還不知道秘密山洞在哪裡，只是很喜歡發亮的石頭，會一直盯著看。",
+    youngerSister: "已經收集了三顆發亮的小石頭，最喜歡粉紅色的那顆。",
+    youngerBrother: "已經收集了三顆發亮的小石頭，最喜歡藍色的那顆。",
+    olderSister: "收集了好多顏色的發亮石頭，會把它們排成好看的圖案。",
+    olderBrother: "收集了好多顏色的發亮石頭，會把它們排成城堡的形狀。",
+    dad: "收集的是全家最大顆的發亮石頭，放在洞口守護著大家。",
+    mom: "收集的石頭會一顆一顆分給家人，讓每個人的房間都亮亮的。",
+    grandpa: "已經收集了一百多顆發亮的石頭，還能說出每一顆是在哪裡找到的。",
+    grandma: "已經收集了一百多顆發亮的石頭，還會用它們排出星座的形狀。",
+  },
+  penguin: {
+    baby: "肚子上還是白白的，但很喜歡看別人身上五顏六色的花紋。",
+    youngerSister: "已經在肚子上畫了一個小小的愛心圖案。",
+    youngerBrother: "已經在肚子上畫了一個小小的閃電圖案。",
+    olderSister: "每年都會換新花樣，這次畫的是一整排小星星。",
+    olderBrother: "每年都會換新花樣，這次畫的是一整排小火箭。",
+    dad: "肚子上畫的花紋十年沒換過，說這是他最喜歡的樣子。",
+    mom: "肚子上的花紋每年都會配合節日換一次，總是最應景的那個。",
+    grandpa: "肚子上的花紋換過上百種，每一種都有屬於那一年的故事。",
+    grandma: "肚子上的花紋換過上百種，還留著最早畫的第一個花樣。",
+  },
+  deer: {
+    baby: "角還小小的，但只要一開心，就會冒出一點點小花苞。",
+    youngerSister: "心情好的時候，角上會開出一朵小小的粉色花。",
+    youngerBrother: "心情好的時候，角上會開出一朵小小的橘色花。",
+    olderSister: "心情好的時候，角上會開出好幾朵不同顏色的花，像個小花園。",
+    olderBrother: "心情好的時候，角上會開出好幾朵花，還喜歡比賽誰開得多。",
+    dad: "角上開的花特別大朵，是全家心情最平穩、最常開花的一個。",
+    mom: "角上開的花特別香，靠近一點就能聞到淡淡的花香。",
+    grandpa: "角上開過的花種類多到數不清，還能一眼認出每一種花的名字。",
+    grandma: "角上開過的花種類多到數不清，會把最漂亮的乾燥花保存起來。",
+  },
+  owl: {
+    baby: "還聽不懂風的悄悄話，但很喜歡靜靜地聽風吹過的聲音。",
+    youngerSister: "已經聽得懂一點點風的悄悄話，知道風在說「要下雨了」。",
+    youngerBrother: "已經聽得懂一點點風的悄悄話，知道風在說「要出太陽了」。",
+    olderSister: "聽得懂好多風的悄悄話，還能分辨出是哪個方向吹來的風。",
+    olderBrother: "聽得懂好多風的悄悄話，喜歡把明天的天氣提早告訴朋友。",
+    dad: "每天晚上都聽風的悄悄話，隔天早上準時告訴全家該不該帶傘。",
+    mom: "每天晚上都聽風的悄悄話，還會順便聽聽風有沒有帶來誰的消息。",
+    grandpa: "聽風的悄悄話聽了一輩子，準確度幾乎從來沒有錯過。",
+    grandma: "聽風的悄悄話聽了一輩子，還能聽出風裡藏著的老故事。",
+  },
+  horse: {
+    baby: "還跑不快，但只要一興奮起來，蹄子就會冒出一點點小小的光。",
+    youngerSister: "跑快一點的時候，身後會留下淡淡的粉色光。",
+    youngerBrother: "跑快一點的時候，身後會留下淡淡的藍色光。",
+    olderSister: "已經跑得夠快，能留下一小段完整的彩虹，還會轉圈圈畫圓形。",
+    olderBrother: "已經跑得夠快，能留下一小段完整的彩虹，喜歡跟朋友比賽誰的更長。",
+    dad: "跑起來留下的彩虹又長又穩，是全家跑得最遠的一個。",
+    mom: "跑起來留下的彩虹顏色特別柔和，看起來像傍晚的晚霞。",
+    grandpa: "這輩子留下的彩虹加起來可以繞森林好幾圈，年輕馬都想跟他學。",
+    grandma: "這輩子留下的彩虹加起來可以繞森林好幾圈，最喜歡用它教小馬認顏色。",
+  },
+  fish: {
+    baby: "還不太會許願，吐出來的泡泡常常一下子就忘記要許什麼。",
+    youngerSister: "已經會許一個小小的願望，最喜歡許「明天也要開心」。",
+    youngerBrother: "已經會許一個小小的願望，最喜歡許「明天要交到新朋友」。",
+    olderSister: "一次能吐出好幾個泡泡，每個都裝著不同的願望。",
+    olderBrother: "一次能吐出好幾個泡泡，喜歡比賽誰的泡泡飛得比較高。",
+    dad: "每天固定吐一個泡泡，願望永遠都是希望全家平安健康。",
+    mom: "每天固定吐一個泡泡，願望永遠都是希望大家吃得飽、睡得好。",
+    grandpa: "這輩子吐過的泡泡多到數不清，還記得每一個實現過的願望。",
+    grandma: "這輩子吐過的泡泡多到數不清，最會教小魚怎麼許出最真心的願望。",
+  },
+  butterfly: {
+    baby: "翅膀圖案還很簡單，但已經開始偷偷地慢慢改變了。",
+    youngerSister: "翅膀上悄悄多了一點點粉色的花紋，只有自己發現。",
+    youngerBrother: "翅膀上悄悄多了一點點條紋，只有自己發現。",
+    olderSister: "已經注意到自己翅膀每天都在變，會偷偷用畫筆記錄下來。",
+    olderBrother: "已經注意到自己翅膀每天都在變，喜歡跟朋友比誰的花紋比較酷。",
+    dad: "翅膀的花紋變化特別穩定，好像跟著四季悄悄轉換顏色。",
+    mom: "翅膀的花紋變化特別漂亮，總是配合心情調整成最柔和的樣子。",
+    grandpa: "翅膀已經變化了好幾千次，是全家族花紋最豐富的一位。",
+    grandma: "翅膀已經變化了好幾千次，還記得每一種曾經出現過的花紋。",
+  },
+  dragon: {
+    baby: "看起來還不太兇，肚子隨便碰一下就咯咯笑個不停。",
+    youngerSister: "假裝自己很兇，但肚子被搔一下馬上就會笑出來。",
+    youngerBrother: "假裝自己很兇，但肚子被搔一下馬上就會笑出來，還會假裝生氣。",
+    olderSister: "已經可以忍住不笑一下下，但搔久一點還是會投降。",
+    olderBrother: "已經可以忍住不笑一下下，還喜歡故意逗弟弟妹妹來搔自己癢。",
+    dad: "平常看起來最兇，但其實全家最容易被搔癢逗笑的就是他。",
+    mom: "平常看起來很溫柔，但被搔癢的時候笑聲是全家最大聲的。",
+    grandpa: "兇了一輩子的表情，但只有最親近的家人知道他其實很怕癢。",
+    grandma: "慈祥了一輩子的樣子，但只要孫子孫女一搔癢，馬上就笑得合不攏嘴。",
+  },
+  lion: {
+    baby: "鬃毛還小小的，摸起來只有一點點溫溫的感覺。",
+    youngerSister: "鬃毛摸起來暖暖的，最喜歡讓朋友摸一下取暖。",
+    youngerBrother: "鬃毛摸起來暖暖的，最喜歡在冬天抱著朋友一起取暖。",
+    olderSister: "鬃毛的溫度可以自己調整，會配合天氣調得剛剛好。",
+    olderBrother: "鬃毛的溫度可以自己調整，喜歡在朋友發抖的時候借他取暖。",
+    dad: "鬃毛裡藏的陽光最多，晚上抱著全家人睡覺也不會冷。",
+    mom: "鬃毛裡藏的陽光最溫柔，總是把最暖的地方讓給小朋友。",
+    grandpa: "鬃毛藏了一輩子的陽光，摸起來像曬過一整個夏天的棉被。",
+    grandma: "鬃毛藏了一輩子的陽光，最喜歡在冬天抱著孫子孫女說故事。",
+  },
+  pig: {
+    baby: "打滾完常常忘記要洗香香，都是家人提醒才會去洗。",
+    youngerSister: "打滾完一定會馬上去洗香香，最喜歡草莓香味的泡泡。",
+    youngerBrother: "打滾完一定會馬上去洗香香，最喜歡薄荷香味的泡泡。",
+    olderSister: "打滾完會馬上去洗香香，還會順便幫弟弟妹妹一起洗。",
+    olderBrother: "打滾完會馬上去洗香香，速度是全家最快的一個。",
+    dad: "打滾完洗香香的時候，會順便把全身檢查一遍，確保乾乾淨淨。",
+    mom: "打滾完洗香香的時候，會特別仔細，是全家洗得最乾淨的一個。",
+    grandpa: "洗香香洗了一輩子，身上總是有淡淡的、讓人安心的香味。",
+    grandma: "洗香香洗了一輩子，還會調配出全家族最喜歡的專屬香味。",
+  },
+  monkey: {
+    baby: "還不知道要分享，看到香蕉都會自己一個人抱著不放。",
+    youngerSister: "已經藏了幾根香蕉，都是留給最要好的朋友吃的。",
+    youngerBrother: "已經藏了幾根香蕉，都是留著要跟朋友比賽誰吃得快的。",
+    olderSister: "藏了滿滿一籃香蕉，會平均分給每一個朋友，一根都不漏。",
+    olderBrother: "藏了滿滿一籃香蕉，喜歡辦一個分享大會，大家一起吃。",
+    dad: "藏的香蕉是全家最多的，隨時準備好招待突然來訪的朋友。",
+    mom: "藏的香蕉會做成香蕉點心，是全家最受歡迎的下午茶。",
+    grandpa: "藏了一整片香蕉林，這輩子分享出去的香蕉已經數不清了。",
+    grandma: "藏了一整片香蕉林，還會教大家怎麼挑最甜的那一根。",
+  },
+  dolphin: {
+    baby: "還不太會跳出水面，但只要一露出頭，就會開心地張望四周。",
+    youngerSister: "跳出水面的時候，會偷偷許一個「今天要交新朋友」的願望。",
+    youngerBrother: "跳出水面的時候，會偷偷許一個「今天要跳得更高」的願望。",
+    olderSister: "每次跳出水面都會許一個願望，還會記錄下哪些願望實現了。",
+    olderBrother: "每次跳出水面都會許一個願望，喜歡挑戰跳得一次比一次高。",
+    dad: "每天固定跳出水面一次，願望永遠都是希望全家一起平安快樂。",
+    mom: "每天固定跳出水面一次，願望永遠都是希望孩子們健康長大。",
+    grandpa: "這輩子跳出水面許過的願望多到數不清，好多都悄悄實現了。",
+    grandma: "這輩子跳出水面許過的願望多到數不清，最喜歡把願望說給孫子聽。",
+  },
+  wolf: {
+    baby: "還不太會嚎叫，只能發出小小聲的「嗚～」，但也是在說晚安。",
+    youngerSister: "已經學會小小聲地嚎叫，跟住得比較近的朋友說晚安。",
+    youngerBrother: "已經學會小小聲地嚎叫，喜歡跟朋友比誰的聲音傳得比較遠。",
+    olderSister: "嚎叫聲已經傳得很遠，好多住在遠方的朋友都聽得到。",
+    olderBrother: "嚎叫聲已經傳得很遠，喜歡在滿月的晚上特別大聲嚎叫。",
+    dad: "每天晚上都會嚎叫一次，聲音低沉又穩重，全森林都聽得到。",
+    mom: "每天晚上都會嚎叫一次，聲音溫柔，像在說「晚安，做個好夢」。",
+    grandpa: "嚎叫了一輩子，聲音裡藏著好多老朋友才聽得懂的暗號。",
+    grandma: "嚎叫了一輩子，最喜歡在嚎叫裡加上搖籃曲一樣的旋律哄小狼睡覺。",
+  },
+};
+
+/** How deeply into 喜歡/{topic} each role has gotten, purely as a function of
+ * age — a baby just enjoys it without understanding it, the two youngest
+ * roles are picking up a first bit of skill, the two oldest kids are
+ * already good at it, and the grown-ups/grandparents are further along
+ * still. Fully generic (just the species' own "likes" topic dropped in), so
+ * it applies to any of the 20 species without per-species authoring, while
+ * still making every one of the 9 family roles sound like a different
+ * creature with a different relationship to the same shared family
+ * interest — which is the actual complaint being fixed here. */
+const ROLE_LIKES_GRADIENT: Record<CreatureVariant, string> = {
+  baby: "{name}也很喜歡{topic}，只是還不太懂，單純覺得很開心。",
+  youngerSister: "{name}已經開始會一點點{topic}的小技巧了，每次成功都很有成就感。",
+  youngerBrother: "{name}也已經開始會一點點{topic}的小技巧了，常常纏著哥哥姊姊要一起做。",
+  olderSister: "{name}對{topic}已經很拿手了，還會耐心地教弟弟妹妹。",
+  olderBrother: "{name}對{topic}已經很拿手了，還會找機會跟朋友比賽。",
+  dad: "{name}也很喜歡{topic}，會固定找時間好好享受，是他放鬆的方式。",
+  mom: "{name}也很喜歡{topic}，常常在忙碌之餘抽空享受一下，整個人都會放鬆下來。",
+  grandpa: "{name}對{topic}已經是專家等級了，什麼都難不倒他，還會講好多相關的故事給你聽。",
+  grandma: "{name}對{topic}已經是專家等級了，知道好多好多小知識，還會講好多相關的故事給你聽。",
+};
+
+/** How each role handles being 害怕/{topic} — same age-based arc as the
+ * likes gradient above (crying → hiding-but-found → reluctantly coping →
+ * grown-up composure → total mastery), also fully generic across species. */
+const ROLE_FEAR_GRADIENT: Record<CreatureVariant, string> = {
+  baby: "{name}只要{topic}，就會忍不住大哭。",
+  youngerSister: "{name}只要{topic}，就會躲起來，但每次都會被媽媽找到。",
+  youngerBrother: "{name}只要{topic}，就會躲進棉被裡不出來，最後都是爸爸把他抱出來的。",
+  olderSister: "{name}現在已經可以自己面對{topic}了，只是會邊做邊碎念，但至少不會哭鬧。",
+  olderBrother: "{name}只要{topic}，還是會很討厭，但已經可以勉強忍住不哭了。",
+  dad: "{name}表面上完全不怕{topic}，還會鼓勵大家，但心裡其實也有一點點不喜歡。",
+  mom: "{name}已經找到自己的方法輕鬆面對{topic}，還會一邊做一邊唱歌給你聽。",
+  grandpa: "{name}心裡其實還是怕{topic}，但完全不會表現出來，大家都以為他不怕了。",
+  grandma: "{name}其實也怕{topic}，但總是笑咪咪地說「這沒什麼」，安慰著比較害怕的孫子孫女。",
+};
+
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -237,25 +507,42 @@ export function speciesFacts(speciesId: string): SpeciesFlavor | undefined {
   return SPECIES_FLAVOR[speciesId];
 }
 
-/** Narrator-framed versions of the 喜歡／害怕／小秘密 facts, each naming the
- * creature so a child listening (not reading) the profile card knows whose
- * favourite thing or fear she's hearing about — "{name} 最喜歡…" rather than
- * a bare "喜歡太陽" with no subject. Previously only the combined
- * secretIntroText + secret pairing (the "播放秘密" button) was speakable at
- * all; 喜歡 and 害怕 had no voice of their own. */
-export function likesText(displayName: string, speciesId: string): string {
+/** Narrator-framed, role-differentiated versions of the 喜歡／害怕／小秘密
+ * facts, each naming the creature so a child listening (not reading) the
+ * profile card knows whose favourite thing or fear she's hearing about —
+ * "{name} 最喜歡…" rather than a bare "喜歡太陽" with no subject — and each
+ * elaborated by how old/mastered that particular family role is at it, so a
+ * baby, a big sister, and a grandpa of the same species genuinely sound
+ * like different individuals instead of reciting the identical species-wide
+ * fact. The short species-level SPECIES_FLAVOR label (facts.likes/fear)
+ * still drives what's shown on the compact profile-card row — this is only
+ * the richer sentence spoken aloud when that row is tapped. */
+export function likesText(displayName: string, speciesId: string, variant: CreatureVariant): string {
   const facts = speciesFacts(speciesId);
-  return facts ? `${displayName}最喜歡${facts.likes}。` : "";
+  if (!facts) return "";
+  return fill(ROLE_LIKES_GRADIENT[variant], { name: displayName, topic: facts.likes });
 }
 
-export function fearText(displayName: string, speciesId: string): string {
+export function fearText(displayName: string, speciesId: string, variant: CreatureVariant): string {
   const facts = speciesFacts(speciesId);
-  return facts ? `${displayName}最害怕${facts.fear}。` : "";
+  if (!facts) return "";
+  return fill(ROLE_FEAR_GRADIENT[variant], { name: displayName, topic: facts.fear });
 }
 
-export function secretFactText(displayName: string, speciesId: string): string {
-  const facts = speciesFacts(speciesId);
-  return facts ? `${displayName}的小秘密是：${facts.secret}` : "";
+/** The raw per-role elaboration (no name-framing) — used by the "播放秘密"
+ * button, which already gets its own name-framing from secretIntroText and
+ * would otherwise say the creature's name twice in a row. */
+export function secretElaborationText(speciesId: string, variant: CreatureVariant): string {
+  return SPECIES_ROLE_SECRETS[speciesId]?.[variant] ?? "";
+}
+
+/** The species-level secret (SPECIES_FLAVOR.secret) is still shown as the
+ * short profile-card label; this is the per-role elaboration actually
+ * spoken when that row is individually tapped, pulled from
+ * SPECIES_ROLE_SECRETS. */
+export function secretFactText(displayName: string, speciesId: string, variant: CreatureVariant): string {
+  const elaboration = secretElaborationText(speciesId, variant);
+  return elaboration ? `${displayName}的小秘密是：${elaboration}` : "";
 }
 
 /** Index into AFFECTION_STAGES for the highest stage a given hearts count

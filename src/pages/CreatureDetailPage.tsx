@@ -33,6 +33,7 @@ import {
   randomGreeting,
   randomPatReaction,
   randomThanks,
+  secretElaborationText,
   secretFactText,
   secretIntroText,
   speciesFacts,
@@ -404,7 +405,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
           <button
             type="button"
             className="profile-card-row"
-            onClick={() => speakAsRole(likesText(displayName, speciesId), typedVariant)}
+            onClick={() => speakAsRole(likesText(displayName, speciesId, typedVariant), typedVariant)}
           >
             <span className="profile-card-icon">😍</span>
             <div>
@@ -415,7 +416,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
           <button
             type="button"
             className="profile-card-row"
-            onClick={() => speakAsRole(fearText(displayName, speciesId), typedVariant)}
+            onClick={() => speakAsRole(fearText(displayName, speciesId, typedVariant), typedVariant)}
           >
             <span className="profile-card-icon">😱</span>
             <div>
@@ -426,7 +427,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
           <button
             type="button"
             className="profile-card-row"
-            onClick={() => speakAsRole(secretFactText(displayName, speciesId), typedVariant)}
+            onClick={() => speakAsRole(secretFactText(displayName, speciesId, typedVariant), typedVariant)}
           >
             <span className="profile-card-icon">🤫</span>
             <div>
@@ -438,7 +439,7 @@ export function CreatureDetailPage({ characters, sentences, prizes, affection, f
         <button
           className="btn btn-outline btn-block"
           style={{ marginTop: 12 }}
-          onClick={() => speakAsRole(`${secretLine}${facts?.secret ?? ""}`, typedVariant)}
+          onClick={() => speakAsRole(`${secretLine}${secretElaborationText(speciesId, typedVariant)}`, typedVariant)}
         >
           🔊 播放秘密
         </button>
